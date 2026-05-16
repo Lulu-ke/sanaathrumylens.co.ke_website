@@ -179,7 +179,7 @@ export function generateSlug(text: string): string {
  */
 export async function generateUniqueSlug(
   text: string,
-  model: "Post" | "Category" | "Tag" | "Event"
+  model: "Post" | "Category" | "Tag" | "Event" | "Artist"
 ): Promise<string> {
   const baseSlug = generateSlug(text);
   let slug = baseSlug;
@@ -195,4 +195,65 @@ export async function generateUniqueSlug(
   }
 
   return slug;
+}
+
+// ============================================
+// NOTIFICATION HELPERS
+// ============================================
+
+/**
+ * Create a notification for a user
+ */
+export async function createNotification(
+  userId: string,
+  title: string,
+  message: string,
+  type: string = "info",
+  link?: string
+) {
+  return db.notification.create({
+    data: {
+      userId,
+      title,
+      message,
+      type,
+      link: link || null,
+    },
+  });
+}
+
+/**
+ * Create notifications for all users with a minimum role
+ */
+export async function notifyUsersByRole(
+  minimumRole: string,
+  title: string,
+  message: string,
+  type: string = "info",
+  link?: string
+) {
+  const minLevel = ROLE_HIERARCHY[minimumRole] ?? 0;
+
+  const users = await db.user.findMany({
+    where: { isActive: true },
+    select: { id: true, role: true },
+  });
+
+  const eligibleUsers = users.filter(
+    (u) => (ROLE_HIERARCHY[u.role] ?? 0) >= minLevel
+  );
+
+  const notifications = eligibleUsers.map((user) => ({
+    userId: user.id,
+    title,
+    message,
+    type,
+    link: link || null,
+  }));
+
+  if (notifications.length > 0) {
+    await db.notification.createMany({ data: notifications });
+  }
+
+  return notifications.length;
 }

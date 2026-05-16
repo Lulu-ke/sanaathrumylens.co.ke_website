@@ -1,60 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { hasPermission } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 
-const subscribeSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  name: z.string().optional(),
-});
-
-// POST: Subscribe to newsletter
-export async function POST(request: NextRequest) {
+// GET: List newsletter subscribers (ADMIN+ only)
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
-    const validated = subscribeSchema.parse(body);
-
-    const existing = await db.newsletterSubscriber.findUnique({
-      where: { email: validated.email },
-    });
-
-    if (existing) {
-      if (existing.status === "UNSUBSCRIBED") {
-        await db.newsletterSubscriber.update({
-          where: { id: existing.id },
-          data: { status: "ACTIVE", name: validated.name || existing.name },
-        });
-        return NextResponse.json({ message: "Resubscribed successfully" });
-      }
-      return NextResponse.json(
-        { error: "Email is already subscribed" },
-        { status: 409 }
-      );
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.role) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const token = uuidv4();
+    if (!hasPermission(session.user.role, "ADMIN")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    await db.newsletterSubscriber.create({
-      data: {
-        email: validated.email,
-        name: validated.name,
-        token,
-        status: "ACTIVE",
-      },
+    const searchParams = request.nextUrl.searchParams;
+    const status = searchParams.get("status");
+
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+
+    const subscribers = await db.newsletterSubscriber.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(
-      { message: "Subscribed successfully" },
-      { status: 201 }
-    );
+    return NextResponse.json({ subscribers });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-    console.error("Newsletter subscribe error:", error);
+    console.error("List subscribers error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

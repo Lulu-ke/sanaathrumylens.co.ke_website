@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/auth-helpers";
+import { hasPermission, createNotification, notifyUsersByRole } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -44,6 +44,20 @@ export async function POST(
       where: { id },
       data: { status: "PENDING_REVIEW" },
     });
+
+    // Notify editors about new post awaiting review
+    try {
+      await notifyUsersByRole(
+        "EDITOR",
+        "New Post Awaiting Review",
+        `"${post.title}" has been submitted for review by ${session.user.name || "an author"}.`,
+        "info",
+        `/dashboard/posts`
+      );
+    } catch (notifError) {
+      console.error("Failed to send review notification:", notifError);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json(updatedPost);
   } catch (error) {
@@ -93,6 +107,30 @@ export async function PATCH(
         status: "APPROVED",
         reviewedById: session.user.id,
       };
+
+      const updatedPost = await db.post.update({
+        where: { id },
+        data: updateData,
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+          reviewedBy: { select: { id: true, name: true } },
+        },
+      });
+
+      // Notify the author that their post has been approved
+      try {
+        await createNotification(
+          post.authorId,
+          "Your Post Has Been Approved!",
+          `"${post.title}" has been approved and is ready for publishing.`,
+          "success",
+          `/dashboard/posts/${id}/edit`
+        );
+      } catch (notifError) {
+        console.error("Failed to send approval notification:", notifError);
+      }
+
+      return NextResponse.json(updatedPost);
     } else {
       if (!validated.rejectedReason) {
         return NextResponse.json(
@@ -105,18 +143,31 @@ export async function PATCH(
         reviewedById: session.user.id,
         rejectedReason: validated.rejectedReason,
       };
+
+      const updatedPost = await db.post.update({
+        where: { id },
+        data: updateData,
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+          reviewedBy: { select: { id: true, name: true } },
+        },
+      });
+
+      // Notify the author that their post needs revision
+      try {
+        await createNotification(
+          post.authorId,
+          "Post Needs Revision",
+          `"${post.title}" needs revision. Reason: ${validated.rejectedReason}`,
+          "warning",
+          `/dashboard/posts/${id}/edit`
+        );
+      } catch (notifError) {
+        console.error("Failed to send rejection notification:", notifError);
+      }
+
+      return NextResponse.json(updatedPost);
     }
-
-    const updatedPost = await db.post.update({
-      where: { id },
-      data: updateData,
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-        reviewedBy: { select: { id: true, name: true } },
-      },
-    });
-
-    return NextResponse.json(updatedPost);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

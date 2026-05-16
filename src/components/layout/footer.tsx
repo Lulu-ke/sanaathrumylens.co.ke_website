@@ -16,6 +16,7 @@ const quickLinks = [
   { name: 'About Us', href: '/about' },
   { name: 'Events', href: '/events' },
   { name: 'Newsletter', href: '/newsletter' },
+  { name: 'Advertise with Us', href: '/advertise' },
   { name: 'Search', href: '/search' },
 ];
 

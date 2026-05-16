@@ -22,6 +22,12 @@ import {
   Sun,
   Moon,
   PenTool,
+  Palette,
+  BadgeDollarSign,
+  Mail,
+  UserPlus,
+  BarChart3,
+  CalendarDays,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState } from "react"
@@ -42,6 +48,7 @@ import {
 } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { NotificationBell } from "@/components/layout/notification-bell"
 
 const roleNavItems: Record<string, { label: string; href: string; icon: React.ElementType }[]> = {
   SUPER_ADMIN: [
@@ -49,11 +56,17 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
     { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
     { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Artists", href: "/dashboard/artists", icon: Palette },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
+    { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     { label: "Users", href: "/dashboard/users", icon: Users },
     { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
     { label: "Tags", href: "/dashboard/tags", icon: Tags },
     { label: "Media", href: "/dashboard/media", icon: Image },
     { label: "Ads", href: "/dashboard/ads", icon: Megaphone },
+    { label: "Sponsored", href: "/dashboard/sponsored", icon: BadgeDollarSign },
+    { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail },
+    { label: "Subscribers", href: "/dashboard/subscribers", icon: UserPlus },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
@@ -62,11 +75,17 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
     { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
     { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Artists", href: "/dashboard/artists", icon: Palette },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
+    { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     { label: "Users", href: "/dashboard/users", icon: Users },
     { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
     { label: "Tags", href: "/dashboard/tags", icon: Tags },
     { label: "Media", href: "/dashboard/media", icon: Image },
     { label: "Ads", href: "/dashboard/ads", icon: Megaphone },
+    { label: "Sponsored", href: "/dashboard/sponsored", icon: BadgeDollarSign },
+    { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail },
+    { label: "Subscribers", href: "/dashboard/subscribers", icon: UserPlus },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
   EDITOR: [
@@ -74,6 +93,9 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
     { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
     { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Artists", href: "/dashboard/artists", icon: Palette },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
+    { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
     { label: "Tags", href: "/dashboard/tags", icon: Tags },
     { label: "Media", href: "/dashboard/media", icon: Image },
@@ -82,12 +104,14 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
   AUTHOR: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "My Posts", href: "/dashboard/posts", icon: PenTool },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
     { label: "Media", href: "/dashboard/media", icon: Image },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
   MODERATOR: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
   READER: [
@@ -261,6 +285,9 @@ export default function DashboardLayout({
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
+              {/* Notifications */}
+              <NotificationBell />
+
               {/* Theme Toggle */}
               <Button
                 variant="ghost"

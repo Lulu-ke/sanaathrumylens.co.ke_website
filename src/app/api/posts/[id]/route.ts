@@ -11,7 +11,7 @@ const updatePostSchema = z.object({
   excerpt: z.string().nullable().optional(),
   featuredImage: z.string().nullable().optional(),
   coverImageAlt: z.string().nullable().optional(),
-  status: z.enum(["DRAFT", "PENDING_REVIEW", "APPROVED", "PUBLISHED", "SCHEDULED", "ARCHIVED"]).optional(),
+  status: z.enum(["DRAFT", "PENDING_REVIEW", "APPROVED", "PUBLISHED", "SCHEDULED", "ARCHIVED", "SPONSORED_REVIEW", "REJECTED"]).optional(),
   isFeatured: z.boolean().optional(),
   isSponsored: z.boolean().optional(),
   allowComments: z.boolean().optional(),

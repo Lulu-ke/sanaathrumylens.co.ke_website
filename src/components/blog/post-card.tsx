@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Calendar, Clock, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { BookmarkButton } from '@/components/blog/bookmark-button';
 
 interface PostCardProps {
   post: {
@@ -13,6 +14,7 @@ interface PostCardProps {
     publishedAt: string | Date | null;
     isFeatured?: boolean;
     isSponsored?: boolean;
+    isBookmarked?: boolean;
     author: {
       id: string;
       name: string;
@@ -70,6 +72,16 @@ export function PostCard({ post }: PostCardProps) {
             Sponsored
           </Badge>
         )}
+        {/* Bookmark button on image */}
+        <div className="absolute bottom-2 right-2 z-10">
+          <BookmarkButton
+            postId={post.id}
+            initialBookmarked={post.isBookmarked}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/95 rounded-full"
+          />
+        </div>
       </Link>
 
       {/* Content */}

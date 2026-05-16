@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ShareButtons } from '@/components/blog/share-buttons';
+import { BookmarkButton } from '@/components/blog/bookmark-button';
 import { CommentSection } from '@/components/blog/comment-section';
 import { PostCard } from '@/components/blog/post-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
@@ -25,6 +26,7 @@ interface PostDetailClientProps {
     publishedAt: string | null;
     updatedAt: string;
     allowComments: boolean;
+    isBookmarked?: boolean;
     author: { id: string; name: string; username: string; image: string | null; bio: string | null };
     categories: { category: { id: string; name: string; slug: string; color: string | null } }[];
     tags: { tag: { id: string; name: string; slug: string } }[];
@@ -122,7 +124,16 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
               </div>
             </div>
           </div>
-          <ShareButtons title={post.title} slug={post.slug} />
+          <div className="flex items-center gap-2">
+            <BookmarkButton
+              postId={post.id}
+              initialBookmarked={post.isBookmarked}
+              variant="outline"
+              size="sm"
+              showLabel
+            />
+            <ShareButtons title={post.title} slug={post.slug} />
+          </div>
         </div>
       </header>
 
@@ -157,9 +168,16 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
         </div>
       )}
 
-      {/* Share at bottom */}
+      {/* Share + Bookmark at bottom */}
       <div className="flex items-center justify-between mt-8 pt-6 border-t">
         <ShareButtons title={post.title} slug={post.slug} />
+        <BookmarkButton
+          postId={post.id}
+          initialBookmarked={post.isBookmarked}
+          variant="outline"
+          size="sm"
+          showLabel
+        />
       </div>
 
       {/* Newsletter CTA */}

@@ -3,10 +3,21 @@
 import { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { Search, Moon, Sun, Menu, User } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Search, Moon, Sun, Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { SearchDialog } from '@/components/blog/search-dialog';
+import { NotificationBell } from '@/components/layout/notification-bell';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { signOut } from 'next-auth/react';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -14,9 +25,61 @@ const navLinks = [
   { href: '/category/film-video', label: 'Film' },
   { href: '/category/books-literature', label: 'Books' },
   { href: '/category/visual-arts', label: 'Visual Arts' },
+  { href: '/artists', label: 'Artists' },
   { href: '/events', label: 'Events' },
   { href: '/about', label: 'About' },
 ];
+
+function HeaderUserSection() {
+  const { data: session } = useSession();
+
+  if (!session?.user?.id) {
+    return (
+      <Link href="/api/auth/signin" className="hidden sm:flex">
+        <Button variant="outline" size="sm" className="gap-2">
+          <User className="h-3.5 w-3.5" />
+          Sign In
+        </Button>
+      </Link>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="hidden sm:flex items-center gap-2 h-9 px-2">
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={session.user.image || undefined} />
+            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+              {session.user.name?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium">{session.user.name}</p>
+          <p className="text-xs text-muted-foreground">{session.user.email}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard" className="cursor-pointer">
+            <User className="mr-2 h-4 w-4" />
+            Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="text-destructive focus:text-destructive cursor-pointer"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -93,6 +156,8 @@ export function Header() {
                 <Search className="h-4 w-4" />
               </Button>
 
+              <NotificationBell />
+
               {mounted && (
                 <Button
                   variant="ghost"
@@ -105,12 +170,7 @@ export function Header() {
                 </Button>
               )}
 
-              <Link href="/api/auth/signin" className="hidden sm:flex">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <User className="h-3.5 w-3.5" />
-                  Sign In
-                </Button>
-              </Link>
+              <HeaderUserSection />
 
               {/* Mobile Menu */}
               <Sheet>

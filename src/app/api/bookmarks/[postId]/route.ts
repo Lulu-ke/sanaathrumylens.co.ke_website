@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// DELETE: Remove bookmark
+// DELETE: Remove bookmark by postId
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
@@ -38,7 +38,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Bookmark removed" });
   } catch (error) {
-    console.error("Remove bookmark error:", error);
+    console.error("Delete bookmark error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
