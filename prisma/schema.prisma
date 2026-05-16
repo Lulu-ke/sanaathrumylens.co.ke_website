@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  username      String   @unique
+  password      String?  // null for OAuth users
+  image         String?
+  bio           String?
+  role          String   @default("READER")  // SUPER_ADMIN, ADMIN, EDITOR, AUTHOR, MODERATOR, READER
+  isActive      Boolean  @default(true)
+  twoFactorCode String?
+  twoFactorExp  DateTime?
+  emailVerified DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  posts              Post[]
+  reviewedPosts      Post[]          @relation("ReviewedPosts")
+  comments           Comment[]
+  bookmarks          Bookmark[]
+  revisions          PostRevision[]
+  moderatedComments  Comment[]       @relation("ModeratedComments")
+  accounts           Account[]
+  sessions           Session[]
+  notifications      Notification[]
+  uploadedMedia      Media[]
+
+  @@index([email])
+  @@index([role])
+  @@index([username])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// CATEGORIES & TAGS
+// ============================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?  // hex color for UI
+  icon        String?  // icon name
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts       PostCategory[]
+  events      EventCategory[]
+
+  @@index([slug])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts     PostTag[]
+
+  @@index([slug])
+}
+
+// ============================================
+// POSTS
+// ============================================
+
+model Post {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  excerpt         String?
+  content         String
+  featuredImage   String?
+  coverImageAlt   String?
+  status          String   @default("DRAFT")  // DRAFT, PENDING_REVIEW, APPROVED, SCHEDULED, PUBLISHED, ARCHIVED, REJECTED
+  isFeatured      Boolean  @default(false)
+  isSponsored     Boolean  @default(false)
+  allowComments   Boolean  @default(true)
+  readingTime     Int      @default(5)
+  views           Int      @default(0)
+  seoTitle        String?
+  seoDescription  String?
+  ogImage         String?
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  rejectedReason  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+
+  reviewedById    String?
+  reviewedBy      User?    @relation("ReviewedPosts", fields: [reviewedById], references: [id])
+
+  categories      PostCategory[]
+  tags            PostTag[]
+  comments        Comment[]
+  revisions       PostRevision[]
+  bookmarks       Bookmark[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([authorId])
+  @@index([publishedAt])
+  @@index([isFeatured])
+}
+
+model PostCategory {
+  postId     String
+  categoryId String
+
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+}
+
+model PostTag {
+  postId String
+  tagId  String
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model PostRevision {
+  id          String   @id @default(cuid())
+  postId      String
+  title       String
+  content     String
+  changeNote  String?
+  version     Int
+  createdAt   DateTime @default(now())
+
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+  @@index([postId])
+  @@index([postId, version])
+}
+
+// ============================================
+// COMMENTS
+// ============================================
+
+model Comment {
+  id            String   @id @default(cuid())
+  content       String
+  status        String   @default("PENDING")  // PENDING, APPROVED, REJECTED, SPAM
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  postId        String
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  parentId      String?
+  parent        Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
+
+  moderatedById String?
+  moderatedBy   User?    @relation("ModeratedComments", fields: [moderatedById], references: [id])
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([status])
+  @@index([parentId])
+}
+
+// ============================================
+// EVENTS
+// ============================================
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  excerpt     String?
+  coverImage  String?
+  eventType   String   @default("IN_PERSON")  // IN_PERSON, VIRTUAL, HYBRID
+  venue       String?
+  location    String?
+  city        String?
+  country     String?
+  latitude    Float?
+  longitude   Float?
+  startDate   DateTime
+  endDate     DateTime?
+  timezone    String   @default("Africa/Nairobi")
+  websiteUrl  String?
+  ticketUrl   String?
+  isFree      Boolean  @default(false)
+  price       String?
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categories  EventCategory[]
+
+  @@index([slug])
+  @@index([startDate])
+  @@index([city])
+  @@index([isFeatured])
+}
+
+model EventCategory {
+  eventId    String
+  categoryId String
+
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, categoryId])
+}
+
+// ============================================
+// NEWSLETTER
+// ============================================
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  status    String   @default("ACTIVE")  // ACTIVE, UNSUBSCRIBED
+  token     String   @unique  // for unsubscribe
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+}
+
+// ============================================
+// ADS & SPONSORED
+// ============================================
+
+model Ad {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  linkUrl     String
+  placement   String   @default("SIDEBAR")  // HEADER_BANNER, SIDEBAR, IN_ARTICLE, FOOTER, BETWEEN_POSTS
+  status      String   @default("DRAFT")  // ACTIVE, PAUSED, EXPIRED, DRAFT
+  startDate   DateTime
+  endDate     DateTime?
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([placement])
+  @@index([status])
+}
+
+// ============================================
+// BOOKMARKS
+// ============================================
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")  // info, warning, success, error
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// SITE SETTINGS (Super Admin)
+// ============================================
+
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  label String?
+  type  String @default("text")  // text, json, boolean, number
+
+  @@index([key])
+}
+
+// ============================================
+// MEDIA
+// ============================================
+
+model Media {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  url         String
+  altText     String?
+  uploadedBy  String
+  uploader   User     @relation(fields: [uploadedBy], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([uploadedBy])
+  @@index([createdAt])
+}

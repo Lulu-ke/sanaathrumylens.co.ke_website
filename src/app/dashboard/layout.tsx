@@ -1,0 +1,328 @@
+"use client"
+
+import { useSession, signOut } from "next-auth/react"
+import { usePathname } from "next/navigation"
+import Link from "next/link"
+import {
+  LayoutDashboard,
+  FileText,
+  MessageSquare,
+  Calendar,
+  Users,
+  FolderOpen,
+  Tags,
+  Image,
+  Megaphone,
+  Settings,
+  User,
+  LogOut,
+  Menu,
+  X,
+  ChevronDown,
+  Sun,
+  Moon,
+  PenTool,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
+
+const roleNavItems: Record<string, { label: string; href: string; icon: React.ElementType }[]> = {
+  SUPER_ADMIN: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Posts", href: "/dashboard/posts", icon: FileText },
+    { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Users", href: "/dashboard/users", icon: Users },
+    { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
+    { label: "Tags", href: "/dashboard/tags", icon: Tags },
+    { label: "Media", href: "/dashboard/media", icon: Image },
+    { label: "Ads", href: "/dashboard/ads", icon: Megaphone },
+    { label: "Settings", href: "/dashboard/settings", icon: Settings },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+  ADMIN: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Posts", href: "/dashboard/posts", icon: FileText },
+    { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Users", href: "/dashboard/users", icon: Users },
+    { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
+    { label: "Tags", href: "/dashboard/tags", icon: Tags },
+    { label: "Media", href: "/dashboard/media", icon: Image },
+    { label: "Ads", href: "/dashboard/ads", icon: Megaphone },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+  EDITOR: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Posts", href: "/dashboard/posts", icon: FileText },
+    { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Events", href: "/dashboard/events", icon: Calendar },
+    { label: "Categories", href: "/dashboard/categories", icon: FolderOpen },
+    { label: "Tags", href: "/dashboard/tags", icon: Tags },
+    { label: "Media", href: "/dashboard/media", icon: Image },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+  AUTHOR: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "My Posts", href: "/dashboard/posts", icon: PenTool },
+    { label: "Media", href: "/dashboard/media", icon: Image },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+  MODERATOR: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+  READER: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+  ],
+}
+
+const roleLabels: Record<string, string> = {
+  SUPER_ADMIN: "Super Admin",
+  ADMIN: "Admin",
+  EDITOR: "Editor",
+  AUTHOR: "Author",
+  MODERATOR: "Moderator",
+  READER: "Reader",
+}
+
+const roleColors: Record<string, string> = {
+  SUPER_ADMIN: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+  ADMIN: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  EDITOR: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  AUTHOR: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+  MODERATOR: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  READER: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400",
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+interface SidebarContentProps {
+  session: ReturnType<typeof useSession>["data"]
+  role: string
+  pathname: string
+  onClose: () => void
+}
+
+function SidebarContent({ session, role, pathname, onClose }: SidebarContentProps) {
+  const navItems = roleNavItems[role] || roleNavItems.READER
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="px-4 py-5 border-b border-border">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-serif font-bold text-sm">S</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-serif font-bold text-sm tracking-wider leading-none">SANAATHRUMYLENS</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5">{roleLabels[role]} Panel</span>
+          </div>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+            return (
+              <TooltipProvider key={item.href} delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="hidden lg:block">
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )
+          })}
+        </nav>
+      </ScrollArea>
+
+      {/* User Info at bottom */}
+      <div className="border-t border-border p-3">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={session?.user?.image || undefined} />
+            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+              {session?.user?.name ? getInitials(session.user.name) : "U"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{session?.user?.name || "User"}</p>
+            <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", roleColors[role])}>
+              {roleLabels[role]}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { data: session } = useSession()
+  const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const role = (session?.user?.role as string) || "READER"
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <SidebarContent
+          session={session}
+          role={role}
+          pathname={pathname}
+          onClose={() => setSidebarOpen(false)}
+        />
+      </aside>
+
+      {/* Main content */}
+      <div className="lg:pl-64">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 h-14 border-b border-border bg-card/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between h-full px-4 sm:px-6">
+            {/* Left: Mobile menu + Breadcrumb */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+              <span className="text-sm text-muted-foreground hidden sm:block capitalize">
+                {pathname === "/dashboard" ? "Overview" : pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ")}
+              </span>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="h-8 w-8"
+              >
+                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              </Button>
+
+              {/* View Site */}
+              <Link href="/" target="_blank">
+                <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5 text-xs">
+                  View Site
+                </Button>
+              </Link>
+
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 h-8 px-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={session?.user?.image || undefined} />
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        {session?.user?.name ? getInitials(session.user.name) : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{session?.user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/profile" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}

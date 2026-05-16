@@ -1,0 +1,320 @@
+"use client"
+
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Trash2,
+  Reply,
+  MoreHorizontal,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+
+interface Comment {
+  id: string
+  content: string
+  status: string
+  createdAt: string
+  author: { id: string; name: string; image: string | null }
+  post: { id: string; title: string }
+  parentId: string | null
+}
+
+export default function CommentsPage() {
+  const queryClient = useQueryClient()
+  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [replyComment, setReplyComment] = useState<Comment | null>(null)
+  const [replyContent, setReplyContent] = useState("")
+
+  const { data: commentsData, isLoading } = useQuery<{ comments: Comment[]; total: number }>({
+    queryKey: ["comments", statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (statusFilter && statusFilter !== "ALL") params.set("status", statusFilter)
+      const res = await fetch(`/api/comments?${params}`)
+      if (!res.ok) throw new Error("Failed to fetch comments")
+      return res.json()
+    },
+  })
+
+  const moderateMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error("Failed to update comment")
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments"] })
+      toast.success("Comment updated")
+    },
+    onError: () => toast.error("Failed to update comment"),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete comment")
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments"] })
+      toast.success("Comment deleted")
+    },
+    onError: () => toast.error("Failed to delete comment"),
+  })
+
+  const replyMutation = useMutation({
+    mutationFn: async ({ postId, content, parentId }: { postId: string; content: string; parentId?: string }) => {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, content, parentId }),
+      })
+      if (!res.ok) throw new Error("Failed to reply")
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments"] })
+      setReplyComment(null)
+      setReplyContent("")
+      toast.success("Reply posted")
+    },
+    onError: () => toast.error("Failed to post reply"),
+  })
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      PENDING: { label: "Pending", variant: "outline" },
+      APPROVED: { label: "Approved", variant: "default" },
+      REJECTED: { label: "Rejected", variant: "destructive" },
+      SPAM: { label: "Spam", variant: "secondary" },
+    }
+    const info = variants[status] || { label: status, variant: "secondary" as const }
+    return <Badge variant={info.variant}>{info.label}</Badge>
+  }
+
+  const pendingCount = commentsData?.comments?.filter((c) => c.status === "PENDING").length || 0
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Comments</h1>
+          <p className="text-muted-foreground">Moderate and manage reader comments</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {pendingCount > 0 && (
+            <Badge variant="outline" className="gap-1">
+              <AlertTriangle className="size-3" />
+              {pendingCount} pending
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Comments</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="SPAM">Spam</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : commentsData?.comments && commentsData.comments.length > 0 ? (
+          commentsData.comments.map((comment) => (
+            <Card key={comment.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar className="size-10">
+                    <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{comment.author.name}</span>
+                      {getStatusBadge(comment.status)}
+                      <span className="text-xs text-muted-foreground">
+                        on &quot;{comment.post.title}&quot;
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(comment.createdAt).toLocaleString()}
+                    </p>
+                    <p className="text-sm mt-2 whitespace-pre-wrap">{comment.content}</p>
+                    <div className="flex items-center gap-2 mt-3">
+                      {comment.status === "PENDING" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-emerald-600 hover:text-emerald-700"
+                            onClick={() => moderateMutation.mutate({ id: comment.id, status: "APPROVED" })}
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-destructive hover:text-destructive"
+                            onClick={() => moderateMutation.mutate({ id: comment.id, status: "REJECTED" })}
+                          >
+                            <XCircle className="size-3.5" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {(comment.status === "APPROVED" || comment.status === "REJECTED") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          onClick={() => moderateMutation.mutate({ id: comment.id, status: "PENDING" })}
+                        >
+                          Reset to Pending
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => {
+                          setReplyComment(comment)
+                          setReplyContent("")
+                        }}
+                      >
+                        <Reply className="size-3.5" />
+                        Reply
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-orange-600"
+                        onClick={() => moderateMutation.mutate({ id: comment.id, status: "SPAM" })}
+                      >
+                        <AlertTriangle className="size-3.5" />
+                        Spam
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => deleteMutation.mutate(comment.id)}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              <MessageSquare className="size-8 mx-auto mb-2 opacity-50" />
+              <p>No comments found</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Reply Dialog */}
+      <Dialog open={!!replyComment} onOpenChange={(open) => !open && setReplyComment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reply to {replyComment?.author.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted p-3 rounded-md">
+              <p className="text-sm text-muted-foreground">{replyComment?.content}</p>
+            </div>
+            <Textarea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              placeholder="Write your reply..."
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyComment(null)}>Cancel</Button>
+            <Button
+              onClick={() => replyComment && replyMutation.mutate({
+                postId: replyComment.post.id,
+                content: replyContent,
+                parentId: replyComment.id,
+              })}
+              disabled={!replyContent.trim() || replyMutation.isPending}
+            >
+              {replyMutation.isPending ? "Sending..." : "Send Reply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

@@ -1,0 +1,301 @@
+"use client"
+
+import { useState } from "react"
+import { useSession } from "next-auth/react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
+import {
+  Plus,
+  Search,
+  FileText,
+  Trash2,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+
+interface Post {
+  id: string
+  title: string
+  slug: string
+  status: string
+  featuredImage: string | null
+  views: number
+  createdAt: string
+  author: { id: string; name: string }
+  categories: { category: { id: string; name: string; color: string | null } }[]
+}
+
+export default function PostsPage() {
+  const { data: session } = useSession()
+  const queryClient = useQueryClient()
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [deletePost, setDeletePost] = useState<Post | null>(null)
+
+  const role = (session?.user?.role as string) || "AUTHOR"
+  const isAuthor = role === "AUTHOR"
+
+  const { data: postsData, isLoading } = useQuery<{ posts: Post[]; total: number }>({
+    queryKey: ["posts", search, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (search) params.set("search", search)
+      if (statusFilter && statusFilter !== "ALL") params.set("status", statusFilter)
+      if (isAuthor) params.set("authorId", session?.user?.id || "")
+      const res = await fetch(`/api/posts?${params}`)
+      if (!res.ok) throw new Error("Failed to fetch posts")
+      return res.json()
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/posts/${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to delete post")
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] })
+      setDeletePost(null)
+      toast.success("Post deleted successfully")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      PUBLISHED: { label: "Published", variant: "default" },
+      DRAFT: { label: "Draft", variant: "secondary" },
+      PENDING_REVIEW: { label: "Pending Review", variant: "outline" },
+      APPROVED: { label: "Approved", variant: "default" },
+      SCHEDULED: { label: "Scheduled", variant: "outline" },
+      REJECTED: { label: "Rejected", variant: "destructive" },
+      ARCHIVED: { label: "Archived", variant: "secondary" },
+    }
+    const info = variants[status] || { label: status, variant: "secondary" as const }
+    return <Badge variant={info.variant}>{info.label}</Badge>
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isAuthor ? "My Posts" : "Posts"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isAuthor ? "Manage your blog posts" : "Manage all blog posts"}
+          </p>
+        </div>
+        <Link href="/dashboard/posts/new">
+          <Button className="gap-2">
+            <Plus className="size-4" />
+            New Post
+          </Button>
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search posts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Statuses</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="PENDING_REVIEW">Pending Review</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="PUBLISHED">Published</SelectItem>
+                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+                <SelectItem value="ARCHIVED">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Posts Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="size-5" />
+            {isAuthor ? "Your Posts" : "All Posts"} ({postsData?.total || 0})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-64" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[250px]">Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Author</TableHead>
+                    <TableHead>Categories</TableHead>
+                    <TableHead>Views</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {postsData?.posts?.map((post) => (
+                    <TableRow key={post.id}>
+                      <TableCell>
+                        <Link
+                          href={`/dashboard/posts/${post.id}/edit`}
+                          className="font-medium hover:text-primary transition-colors"
+                        >
+                          {post.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(post.status)}</TableCell>
+                      <TableCell className="text-muted-foreground">{post.author.name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {post.categories.slice(0, 2).map((pc) => (
+                            <Badge key={pc.category.id} variant="outline" className="text-xs">
+                              {pc.category.name}
+                            </Badge>
+                          ))}
+                          {post.categories.length > 2 && (
+                            <Badge variant="outline" className="text-xs">+{post.categories.length - 2}</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="size-3" />
+                          {post.views}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/posts/${post.id}/edit`}>
+                                <Pencil className="mr-2 size-4" />
+                                Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setDeletePost(post)}
+                            >
+                              <Trash2 className="mr-2 size-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!postsData?.posts || postsData.posts.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        No posts found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletePost} onOpenChange={(open) => !open && setDeletePost(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deletePost?.title}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePost && deleteMutation.mutate(deletePost.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
