@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   Eye,
   Pencil,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -75,7 +76,7 @@ interface PostsResponse {
   }
 }
 
-export default function PostsPage() {
+function PostsContent() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
@@ -345,5 +346,13 @@ export default function PostsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+export default function PostsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>}>
+      <PostsContent />
+    </Suspense>
   )
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { UserPlus, Search, Download, Trash2, Mail } from 'lucide-react';
+import { UserPlus, Search, Download, Trash2, Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,7 @@ interface SubscribersResponse {
   };
 }
 
-export default function SubscribersPage() {
+function SubscribersContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -297,5 +297,13 @@ export default function SubscribersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function SubscribersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>}>
+      <SubscribersContent />
+    </Suspense>
   );
 }

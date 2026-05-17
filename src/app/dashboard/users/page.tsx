@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -11,6 +11,7 @@ import {
   UserCog,
   Trash2,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -72,7 +73,7 @@ interface UsersResponse {
   }
 }
 
-export default function UsersPage() {
+function UsersContent() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
@@ -546,5 +547,13 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>}>
+      <UsersContent />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
@@ -11,6 +11,7 @@ import {
   Trash2,
   Reply,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,7 +62,7 @@ interface CommentsResponse {
   }
 }
 
-export default function CommentsPage() {
+function CommentsContent() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -362,5 +363,13 @@ export default function CommentsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function CommentsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>}>
+      <CommentsContent />
+    </Suspense>
   )
 }
