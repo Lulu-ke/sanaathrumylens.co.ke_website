@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Edge-compatible constants (do NOT import from auth-helpers — uses Node.js modules)
+// ============================================
+// Edge-compatible constants
+// (Do NOT import from auth-helpers or subdomain —
+//  auth-helpers uses Node.js modules; we inline everything here)
+// ============================================
+
 const DASHBOARD_ROLES = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR", "MODERATOR", "READER"];
 
 const ROLE_HIERARCHY: Record<string, number> = {
@@ -12,6 +17,52 @@ const ROLE_HIERARCHY: Record<string, number> = {
   MODERATOR: 2,
   READER: 1,
 };
+
+const ROOT_DOMAIN = "sanaathrumylens.co.ke";
+
+interface SubdomainConfig {
+  subdomain: string;
+  role: string;
+  label: string;
+  description: string;
+  accentColor: string;
+  minRoleLevel: number;
+}
+
+const SUBDOMAINS: SubdomainConfig[] = [
+  {
+    subdomain: "control",
+    role: "SUPER_ADMIN",
+    label: "Control Center",
+    description: "Full system control — users, settings, everything",
+    accentColor: "#e11d48",
+    minRoleLevel: 6,
+  },
+  {
+    subdomain: "admin",
+    role: "ADMIN",
+    label: "Admin Panel",
+    description: "Content management, users, and configuration",
+    accentColor: "#d97706",
+    minRoleLevel: 5,
+  },
+  {
+    subdomain: "editor",
+    role: "EDITOR",
+    label: "Editor Desk",
+    description: "Review & publish content, manage editorial workflow",
+    accentColor: "#059669",
+    minRoleLevel: 4,
+  },
+  {
+    subdomain: "author",
+    role: "AUTHOR",
+    label: "Author Studio",
+    description: "Write, edit, and submit your stories",
+    accentColor: "#0284c7",
+    minRoleLevel: 3,
+  },
+];
 
 // API routes that are public for GET requests
 const publicGetApiRoutes = [
@@ -43,6 +94,10 @@ const apiRoleRequirements: Record<string, string> = {
   "/api/comments": "READER",
 };
 
+// ============================================
+// Helper functions
+// ============================================
+
 /**
  * Parse JWT payload from the session token cookie (without verifying signature).
  * This is used for quick role checks in middleware; full verification happens in API routes.
@@ -66,8 +121,89 @@ function parseJWTPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+/**
+ * Detect which subdomain the request is coming from.
+ * Returns the SubdomainConfig or null if it's the base domain / localhost.
+ */
+function detectSubdomain(hostname: string): SubdomainConfig | null {
+  // localhost/dev handling — no subdomain enforcement
+  if (hostname === "localhost" || hostname.startsWith("127.0.0.1") || hostname === "0.0.0.0") {
+    return null;
+  }
+
+  // Check if this is a subdomain of our root domain
+  if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+    const subdomainPart = hostname.replace(`.${ROOT_DOMAIN}`, "");
+    if (!subdomainPart || subdomainPart === "www") {
+      return null; // www or bare domain = public
+    }
+    const found = SUBDOMAINS.find((s) => s.subdomain === subdomainPart);
+    return found || null;
+  }
+
+  // Custom domain / Vercel preview — no subdomain enforcement
+  return null;
+}
+
+/**
+ * Get the subdomain config for a given role.
+ * Returns the most specific subdomain for that role, or null for READER.
+ */
+function getSubdomainForRole(role: string): SubdomainConfig | null {
+  const level = ROLE_HIERARCHY[role] ?? 0;
+  if (level <= 1) return null; // READER has no subdomain
+  return SUBDOMAINS.find((s) => s.role === role) || null;
+}
+
+/**
+ * Check if a user with the given role can access a subdomain.
+ */
+function canAccessSubdomain(userRole: string, subdomain: SubdomainConfig): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+  return userLevel >= subdomain.minRoleLevel;
+}
+
+/**
+ * Build a URL on a different subdomain while preserving the protocol.
+ */
+function buildSubdomainUrl(subdomain: string, pathname: string, request: NextRequest): URL {
+  const protocol = request.nextUrl.protocol || "https:";
+  return new URL(`${protocol}//${subdomain}.${ROOT_DOMAIN}${pathname}`);
+}
+
+/**
+ * Build a URL on the base domain while preserving the protocol.
+ */
+function buildBaseDomainUrl(pathname: string, request: NextRequest): URL {
+  const protocol = request.nextUrl.protocol || "https:";
+  return new URL(`${protocol}//${ROOT_DOMAIN}${pathname}`);
+}
+
+/**
+ * Get the session token and parsed role from the request cookies.
+ */
+function getUserRole(request: NextRequest): { sessionToken: string | null; role: string } {
+  const sessionToken =
+    request.cookies.get("next-auth.session-token")?.value ||
+    request.cookies.get("__Secure-next-auth.session-token")?.value;
+
+  if (!sessionToken) {
+    return { sessionToken: null, role: "READER" };
+  }
+
+  const payload = parseJWTPayload(sessionToken);
+  const role = (payload?.role as string) || "READER";
+  return { sessionToken, role };
+}
+
+// ============================================
+// Middleware
+// ============================================
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host")?.split(":")[0] || "";
+  const subdomain = detectSubdomain(hostname);
 
   // Allow static files and Next.js internals
   if (
@@ -78,7 +214,138 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if it's an API route
+  const { sessionToken, role: userRole } = getUserRole(request);
+
+  // ============================================
+  // Subdomain-specific routing
+  // ============================================
+  if (subdomain) {
+    // We are on a subdomain (e.g., control.sanaathrumylens.co.ke)
+
+    // Allow API routes on any subdomain (same auth checks as base domain)
+    if (pathname.startsWith("/api/")) {
+      // Apply the same API route auth logic
+      if (pathname.startsWith("/api/auth")) {
+        return NextResponse.next();
+      }
+
+      const isPublicApi = publicGetApiRoutes.some((route) =>
+        pathname.startsWith(route)
+      );
+      if (isPublicApi && request.method === "GET") {
+        return NextResponse.next();
+      }
+
+      const isPublicPostApi = publicPostApiRoutes.some((route) =>
+        pathname.startsWith(route)
+      );
+      if (isPublicPostApi && request.method === "POST") {
+        return NextResponse.next();
+      }
+
+      if (
+        pathname.startsWith("/api/newsletter/unsubscribe") &&
+        request.method === "GET"
+      ) {
+        return NextResponse.next();
+      }
+
+      if (!sessionToken) {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+
+      // Parse JWT for role check
+      for (const [routePrefix, requiredRole] of Object.entries(
+        apiRoleRequirements
+      )) {
+        if (pathname.startsWith(routePrefix)) {
+          const userPermLevel = ROLE_HIERARCHY[userRole] ?? 0;
+          const requiredPermLevel = ROLE_HIERARCHY[requiredRole] ?? 0;
+
+          if (userPermLevel < requiredPermLevel) {
+            return NextResponse.json(
+              { error: "Insufficient permissions" },
+              { status: 403 }
+            );
+          }
+          break;
+        }
+      }
+
+      return NextResponse.next();
+    }
+
+    // Allow auth/signin on subdomains
+    if (pathname.startsWith("/auth/signin")) {
+      return NextResponse.next();
+    }
+
+    // On a subdomain, redirect / to /dashboard
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // Only serve /dashboard routes on subdomains
+    if (!pathname.startsWith("/dashboard")) {
+      // Redirect non-dashboard paths to /dashboard on this subdomain
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // User is accessing /dashboard on a subdomain
+    // Check authentication
+    if (!sessionToken) {
+      const signInUrl = new URL("/auth/signin", request.url);
+      signInUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // Check if the user's role can access this subdomain
+    if (!canAccessSubdomain(userRole, subdomain)) {
+      // User doesn't have permission for this subdomain
+      // Redirect them to their correct subdomain or to the redirect page
+      const correctSubdomain = getSubdomainForRole(userRole);
+      if (correctSubdomain) {
+        // Redirect to their correct subdomain dashboard
+        const redirectUrl = buildSubdomainUrl(correctSubdomain.subdomain, "/dashboard/redirect", request);
+        redirectUrl.searchParams.set("attempted", subdomain.subdomain);
+        return NextResponse.redirect(redirectUrl);
+      } else {
+        // READER or unknown role — redirect to base domain dashboard
+        const redirectUrl = buildBaseDomainUrl("/dashboard/redirect", request);
+        redirectUrl.searchParams.set("attempted", subdomain.subdomain);
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
+    // READERS should not be on subdomains at all (even if they somehow get past)
+    if (userRole === "READER") {
+      const redirectUrl = buildBaseDomainUrl("/dashboard/redirect", request);
+      redirectUrl.searchParams.set("attempted", subdomain.subdomain);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Role-based path restrictions within subdomain dashboard
+    // (Same as existing logic for base domain /dashboard)
+    if (userRole === "READER") {
+      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/profile"];
+      if (!allowedReaderPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+        return NextResponse.redirect(new URL("/dashboard/reader", request.url));
+      }
+    } else if (!DASHBOARD_ROLES.includes(userRole)) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  // ============================================
+  // Base domain routing (no subdomain)
+  // ============================================
+
+  // Check if it's an API route — same logic as before
   const isApiRoute = pathname.startsWith("/api/");
 
   if (isApiRoute) {
@@ -95,7 +362,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Allow specific POST routes without auth (newsletter subscribe, ad tracking, sponsored submit, analytics)
+    // Allow specific POST routes without auth
     const isPublicPostApi = publicPostApiRoutes.some((route) =>
       pathname.startsWith(route)
     );
@@ -112,10 +379,6 @@ export async function middleware(request: NextRequest) {
     }
 
     // For protected API routes, check authentication via session cookie
-    const sessionToken =
-      request.cookies.get("next-auth.session-token")?.value ||
-      request.cookies.get("__Secure-next-auth.session-token")?.value;
-
     if (!sessionToken) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -123,11 +386,7 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Parse JWT for role check (lightweight, no crypto needed for middleware)
-    const payload = parseJWTPayload(sessionToken);
-    const userRole = (payload?.role as string) || "READER";
-
-    // Check role-based access for specific API routes
+    // Parse JWT for role check
     for (const [routePrefix, requiredRole] of Object.entries(
       apiRoleRequirements
     )) {
@@ -148,20 +407,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check dashboard route access
+  // Check dashboard route access on base domain
   if (pathname.startsWith("/dashboard")) {
-    const sessionToken =
-      request.cookies.get("next-auth.session-token")?.value ||
-      request.cookies.get("__Secure-next-auth.session-token")?.value;
-
     if (!sessionToken) {
       const signInUrl = new URL("/auth/signin", request.url);
       signInUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(signInUrl);
     }
 
-    const payload = parseJWTPayload(sessionToken);
-    const userRole = (payload?.role as string) || "READER";
+    // On the base domain, /dashboard is only for READER role
+    // Higher roles should be redirected to their subdomain dashboard
+    const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+
+    if (userLevel >= 3) {
+      // AUTHOR, EDITOR, ADMIN, SUPER_ADMIN — redirect to their subdomain
+      // But only if we're on the production domain (not localhost)
+      if (hostname === ROOT_DOMAIN || hostname === `www.${ROOT_DOMAIN}`) {
+        const correctSubdomain = getSubdomainForRole(userRole);
+        if (correctSubdomain) {
+          const redirectUrl = buildSubdomainUrl(correctSubdomain.subdomain, pathname, request);
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+      // On localhost or other domains, fall through to normal dashboard access
+    }
 
     // READERS can only access /dashboard and /dashboard/reader and /dashboard/profile
     if (userRole === "READER") {
@@ -176,9 +445,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // All other routes (public blog, etc.) — pass through
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw.js).*)"],
 };

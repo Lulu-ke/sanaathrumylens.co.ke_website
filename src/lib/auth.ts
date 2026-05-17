@@ -128,4 +128,40 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
+  // Cross-subdomain cookie configuration
+  // In production, cookies are shared across *.sanaathrumylens.co.ke
+  // so logging in on one subdomain authenticates all subdomains
+  cookies: process.env.NODE_ENV === "production"
+    ? {
+        sessionToken: {
+          name: "next-auth.session-token",
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            domain: ".sanaathrumylens.co.ke",
+            secure: true,
+          },
+        },
+        csrfToken: {
+          name: "next-auth.csrf-token",
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            domain: ".sanaathrumylens.co.ke",
+            secure: true,
+          },
+        },
+        callbackUrl: {
+          name: "next-auth.callback-url",
+          options: {
+            sameSite: "lax",
+            path: "/",
+            domain: ".sanaathrumylens.co.ke",
+            secure: true,
+          },
+        },
+      }
+    : undefined,
 };

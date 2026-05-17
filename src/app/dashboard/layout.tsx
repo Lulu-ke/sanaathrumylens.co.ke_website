@@ -29,9 +29,11 @@ import {
   BarChart3,
   CalendarDays,
   Bookmark,
+  ExternalLink,
+  Shield,
 } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -50,6 +52,37 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { NotificationBell } from "@/components/layout/notification-bell"
+import {
+  SUBDOMAINS,
+  BASE_DOMAIN_CONFIG,
+  type SubdomainConfig,
+} from "@/lib/subdomain"
+
+// ============================================
+// useSubdomain hook
+// ============================================
+
+function useSubdomain(): SubdomainConfig | null {
+  return useMemo(() => {
+    if (typeof window === "undefined") return null
+    const hostname = window.location.hostname
+    // localhost/dev — no subdomain
+    if (hostname === "localhost" || hostname.startsWith("127.0.0.1") || hostname === "0.0.0.0") {
+      return null
+    }
+    const ROOT_DOMAIN = "sanaathrumylens.co.ke"
+    if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+      const subdomainPart = hostname.replace(`.${ROOT_DOMAIN}`, "")
+      if (!subdomainPart || subdomainPart === "www") return null
+      return SUBDOMAINS.find((s) => s.subdomain === subdomainPart) || null
+    }
+    return null
+  }, [])
+}
+
+// ============================================
+// Navigation config
+// ============================================
 
 const roleNavItems: Record<string, { label: string; href: string; icon: React.ElementType }[]> = {
   SUPER_ADMIN: [
@@ -154,23 +187,55 @@ interface SidebarContentProps {
   role: string
   pathname: string
   onClose: () => void
+  subdomain: SubdomainConfig | null
 }
 
-function SidebarContent({ session, role, pathname, onClose }: SidebarContentProps) {
+function SidebarContent({ session, role, pathname, onClose, subdomain }: SidebarContentProps) {
   const navItems = roleNavItems[role] || roleNavItems.READER
 
   return (
     <div className="flex flex-col h-full">
+      {/* Accent bar at top of sidebar */}
+      {subdomain && (
+        <div
+          className="h-1 w-full shrink-0"
+          style={{ backgroundColor: subdomain.accentColor }}
+        />
+      )}
+
       {/* Logo */}
       <div className="px-4 py-5 border-b border-border">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-serif font-bold text-sm">S</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-serif font-bold text-sm tracking-wider leading-none">SANAATHRUMYLENS</span>
-            <span className="text-[10px] text-muted-foreground mt-0.5">{roleLabels[role]} Panel</span>
-          </div>
+        <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
+          {subdomain ? (
+            // Subdomain-specific branding
+            <>
+              <div
+                className="h-8 w-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: subdomain.accentColor }}
+              >
+                <Shield className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm leading-none" style={{ color: subdomain.accentColor }}>
+                  {subdomain.label}
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">
+                  {subdomain.subdomain}.sanaathrumylens.co.ke
+                </span>
+              </div>
+            </>
+          ) : (
+            // Base domain branding (existing)
+            <>
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-serif font-bold text-sm">S</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-serif font-bold text-sm tracking-wider leading-none">SANAATHRUMYLENS</span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">{roleLabels[role]} Panel</span>
+              </div>
+            </>
+          )}
         </Link>
       </div>
 
@@ -237,8 +302,14 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const subdomain = useSubdomain()
 
   const role = (session?.user?.role as string) || "READER"
+
+  // Determine the "View Site" URL based on subdomain
+  const viewSiteUrl = subdomain
+    ? "https://sanaathrumylens.co.ke"
+    : "/"
 
   return (
     <div className="min-h-screen bg-background">
@@ -262,6 +333,7 @@ export default function DashboardLayout({
           role={role}
           pathname={pathname}
           onClose={() => setSidebarOpen(false)}
+          subdomain={subdomain}
         />
       </aside>
 
@@ -287,6 +359,16 @@ export default function DashboardLayout({
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
+              {/* Subdomain indicator badge (visible when on a subdomain) */}
+              {subdomain && (
+                <span
+                  className="hidden md:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                  style={{ backgroundColor: subdomain.accentColor }}
+                >
+                  {subdomain.label}
+                </span>
+              )}
+
               {/* Notifications */}
               <NotificationBell />
 
@@ -302,11 +384,19 @@ export default function DashboardLayout({
               </Button>
 
               {/* View Site */}
-              <Link href="/" target="_blank">
-                <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5 text-xs">
-                  View Site
-                </Button>
-              </Link>
+              {subdomain ? (
+                <a href={viewSiteUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5 text-xs">
+                    View Site <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </a>
+              ) : (
+                <Link href="/" target="_blank">
+                  <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5 text-xs">
+                    View Site
+                  </Button>
+                </Link>
+              )}
 
               {/* User Menu */}
               <DropdownMenu>
