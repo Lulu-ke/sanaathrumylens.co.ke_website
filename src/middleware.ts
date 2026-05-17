@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 // ============================================
 // Edge-compatible constants
@@ -181,8 +182,9 @@ function buildBaseDomainUrl(pathname: string, request: NextRequest): URL {
 
 /**
  * Get the session token and parsed role from the request cookies.
+ * Uses next-auth/jwt getToken() which properly handles encrypted JWE tokens.
  */
-function getUserRole(request: NextRequest): { sessionToken: string | null; role: string } {
+async function getUserRole(request: NextRequest): Promise<{ sessionToken: string | null; role: string }> {
   const sessionToken =
     request.cookies.get("next-auth.session-token")?.value ||
     request.cookies.get("__Secure-next-auth.session-token")?.value;
@@ -191,9 +193,26 @@ function getUserRole(request: NextRequest): { sessionToken: string | null; role:
     return { sessionToken: null, role: "READER" };
   }
 
-  const payload = parseJWTPayload(sessionToken);
-  const role = (payload?.role as string) || "READER";
-  return { sessionToken, role };
+  try {
+    // Use getToken to properly decrypt the JWE token
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+
+    if (token) {
+      const role = (token.role as string) || "READER";
+      return { sessionToken, role };
+    }
+  } catch {
+    // Fallback: try parsing as plain JWT (for non-encrypted tokens)
+    const payload = parseJWTPayload(sessionToken);
+    if (payload?.role) {
+      return { sessionToken, role: payload.role as string };
+    }
+  }
+
+  return { sessionToken, role: "READER" };
 }
 
 // ============================================
@@ -214,7 +233,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { sessionToken, role: userRole } = getUserRole(request);
+  const { sessionToken, role: userRole } = await getUserRole(request);
 
   // ============================================
   // Subdomain-specific routing
