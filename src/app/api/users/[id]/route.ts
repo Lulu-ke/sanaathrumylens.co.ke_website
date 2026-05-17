@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
+import { hash, compare } from "bcryptjs";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -12,6 +13,8 @@ const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
   bio: z.string().nullable().optional(),
   image: z.string().nullable().optional(),
+  password: z.string().min(8).optional(),
+  currentPassword: z.string().optional(),
 });
 
 // GET: Get user by ID
@@ -42,6 +45,7 @@ export async function GET(
         image: true,
         bio: true,
         isActive: true,
+        twoFactorEnabled: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
@@ -65,19 +69,17 @@ export async function GET(
   }
 }
 
-// PATCH: Update user (role, status) — SUPER_ADMIN only
+// PATCH: Update user
+// - Self-update: allow name, bio, image, username, password (with currentPassword verification)
+// - Admin update: require SUPER_ADMIN, allow all fields
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.role) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!hasPermission(session.user.role, "SUPER_ADMIN")) {
-      return NextResponse.json({ error: "Forbidden — SUPER_ADMIN only" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -88,14 +90,6 @@ export async function PATCH(
     const existing = await db.user.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Prevent self-deactivation
-    if (id === session.user.id && validated.isActive === false) {
-      return NextResponse.json(
-        { error: "You cannot deactivate your own account" },
-        { status: 400 }
-      );
     }
 
     // Check username uniqueness
@@ -111,21 +105,115 @@ export async function PATCH(
       }
     }
 
-    const user = await db.user.update({
-      where: { id },
-      data: validated,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        username: true,
-        role: true,
-        isActive: true,
-        updatedAt: true,
-      },
-    });
+    const isSelfUpdate = session.user.id === id;
 
-    return NextResponse.json(user);
+    if (isSelfUpdate) {
+      // Self-update: allow name, bio, image, username, password (with currentPassword verification)
+      const { role, isActive, password, currentPassword, ...selfFields } = validated;
+
+      // If updating password, require currentPassword verification
+      if (password) {
+        if (!currentPassword) {
+          return NextResponse.json(
+            { error: "Current password is required to change password" },
+            { status: 400 }
+          );
+        }
+
+        if (!existing.password) {
+          return NextResponse.json(
+            { error: "Cannot change password for OAuth-only accounts" },
+            { status: 400 }
+          );
+        }
+
+        const isCurrentPasswordValid = await compare(currentPassword, existing.password);
+        if (!isCurrentPasswordValid) {
+          return NextResponse.json(
+            { error: "Current password is incorrect" },
+            { status: 400 }
+          );
+        }
+
+        const hashedPassword = await hash(password, 12);
+        const user = await db.user.update({
+          where: { id },
+          data: {
+            ...selfFields,
+            password: hashedPassword,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            username: true,
+            role: true,
+            image: true,
+            bio: true,
+            isActive: true,
+            twoFactorEnabled: true,
+            updatedAt: true,
+          },
+        });
+
+        return NextResponse.json(user);
+      }
+
+      // No password change — just update self fields
+      const user = await db.user.update({
+        where: { id },
+        data: selfFields,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          username: true,
+          role: true,
+          image: true,
+          bio: true,
+          isActive: true,
+          twoFactorEnabled: true,
+          updatedAt: true,
+        },
+      });
+
+      return NextResponse.json(user);
+    } else {
+      // Admin update: require SUPER_ADMIN, allow all fields
+      if (!hasPermission(session.user.role, "SUPER_ADMIN")) {
+        return NextResponse.json({ error: "Forbidden — SUPER_ADMIN only" }, { status: 403 });
+      }
+
+      // Prevent self-deactivation
+      if (id === session.user.id && validated.isActive === false) {
+        return NextResponse.json(
+          { error: "You cannot deactivate your own account" },
+          { status: 400 }
+        );
+      }
+
+      // For admin updates, strip out password/currentPassword fields
+      const { password, currentPassword, ...adminFields } = validated;
+
+      const user = await db.user.update({
+        where: { id },
+        data: adminFields,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          username: true,
+          role: true,
+          image: true,
+          bio: true,
+          isActive: true,
+          twoFactorEnabled: true,
+          updatedAt: true,
+        },
+      });
+
+      return NextResponse.json(user);
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

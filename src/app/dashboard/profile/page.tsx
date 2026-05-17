@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useSession } from "next-auth/react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import {
   User,
   Lock,
@@ -24,15 +24,38 @@ import { toast } from "sonner"
 
 export default function ProfilePage() {
   const { data: session, update: updateSession } = useSession()
-  const [name, setName] = useState(session?.user?.name || "")
-  const [bio, setBio] = useState("")
-  const [image, setImage] = useState(session?.user?.image || "")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [show2FAVerify, setShow2FAVerify] = useState(false)
+  const [show2FADisable, setShow2FADisable] = useState(false)
   const [otp, setOtp] = useState("")
+  const [disablePassword, setDisablePassword] = useState("")
+  const [devCode, setDevCode] = useState<string | null>(null)
+
+  // Fetch user profile on load
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/users/me")
+      if (!res.ok) throw new Error("Failed to fetch profile")
+      return res.json()
+    },
+  })
+
+  // Initialize form state from profile data (once)
+  const [initialized, setInitialized] = useState(false)
+  const [name, setName] = useState("")
+  const [bio, setBio] = useState("")
+  const [image, setImage] = useState("")
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  if (profile && !initialized) {
+    setName(profile.name || "")
+    setBio(profile.bio || "")
+    setImage(profile.image || "")
+    setTwoFactorEnabled(profile.twoFactorEnabled || false)
+    setInitialized(true)
+  }
 
   const profileMutation = useMutation({
     mutationFn: async () => {
@@ -41,14 +64,17 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, bio, image }),
       })
-      if (!res.ok) throw new Error("Failed to update profile")
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to update profile")
+      }
       return res.json()
     },
     onSuccess: () => {
       updateSession()
       toast.success("Profile updated")
     },
-    onError: () => toast.error("Failed to update profile"),
+    onError: (err: Error) => toast.error(err.message),
   })
 
   const passwordMutation = useMutation({
@@ -92,21 +118,84 @@ export default function ProfilePage() {
     }
   }
 
-  const handle2FAToggle = async () => {
-    if (twoFactorEnabled) {
-      setTwoFactorEnabled(false)
-      toast.success("2FA disabled")
-    } else {
+  // Enable 2FA: Generate and send code
+  const enable2FAMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/auth/2fa", {
+        method: "PUT",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to enable 2FA")
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
       setShow2FAVerify(true)
-    }
-  }
+      if (data.devCode) {
+        setDevCode(data.devCode)
+        toast.info(`Dev mode: Your code is ${data.devCode}`)
+      } else {
+        toast.success("Verification code sent to your email")
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
 
-  const verify2FA = () => {
-    if (otp.length === 6) {
+  // Verify 2FA code
+  const verify2FAMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/auth/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: otp }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Invalid code")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
       setTwoFactorEnabled(true)
       setShow2FAVerify(false)
       setOtp("")
-      toast.success("2FA enabled")
+      setDevCode(null)
+      toast.success("2FA enabled successfully")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  // Disable 2FA
+  const disable2FAMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/auth/2fa", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: disablePassword }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to disable 2FA")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      setTwoFactorEnabled(false)
+      setShow2FADisable(false)
+      setDisablePassword("")
+      toast.success("2FA disabled")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const handle2FAToggle = () => {
+    if (twoFactorEnabled) {
+      // Show disable dialog (requires password)
+      setShow2FADisable(true)
+    } else {
+      // Enable 2FA: generate and send code
+      enable2FAMutation.mutate()
     }
   }
 
@@ -221,10 +310,14 @@ export default function ProfilePage() {
                       : "Protect your account with 2FA"}
                   </p>
                 </div>
-                <Switch checked={twoFactorEnabled} onCheckedChange={handle2FAToggle} />
+                <Switch
+                  checked={twoFactorEnabled}
+                  onCheckedChange={handle2FAToggle}
+                  disabled={enable2FAMutation.isPending}
+                />
               </div>
 
-              {twoFactorEnabled && (
+              {twoFactorEnabled && !show2FADisable && (
                 <Badge variant="default" className="gap-1">
                   <Shield className="size-3" /> 2FA Enabled
                 </Badge>
@@ -232,7 +325,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* 2FA Verification Dialog */}
+          {/* 2FA Enable Verification */}
           {show2FAVerify && (
             <Card>
               <CardHeader>
@@ -240,6 +333,12 @@ export default function ProfilePage() {
                 <CardDescription>Enter the 6-digit code sent to your email</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {devCode && (
+                  <div className="rounded-md bg-muted p-3 text-sm">
+                    <p className="font-medium">Dev Mode</p>
+                    <p>Your verification code: <span className="font-mono font-bold">{devCode}</span></p>
+                  </div>
+                )}
                 <InputOTP maxLength={6} value={otp} onChange={setOtp}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -251,8 +350,43 @@ export default function ProfilePage() {
                   </InputOTPGroup>
                 </InputOTP>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { setShow2FAVerify(false); setOtp("") }}>Cancel</Button>
-                  <Button onClick={verify2FA} disabled={otp.length < 6}>Verify & Enable</Button>
+                  <Button variant="outline" onClick={() => { setShow2FAVerify(false); setOtp(""); setDevCode(null) }}>Cancel</Button>
+                  <Button onClick={() => verify2FAMutation.mutate()} disabled={otp.length < 6 || verify2FAMutation.isPending}>
+                    {verify2FAMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    Verify & Enable
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 2FA Disable Confirmation */}
+          {show2FADisable && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Disable 2FA</CardTitle>
+                <CardDescription>Enter your current password to disable two-factor authentication</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Current Password</Label>
+                  <Input
+                    type="password"
+                    value={disablePassword}
+                    onChange={(e) => setDisablePassword(e.target.value)}
+                    placeholder="Enter your current password"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setShow2FADisable(false); setDisablePassword("") }}>Cancel</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => disable2FAMutation.mutate()}
+                    disabled={!disablePassword || disable2FAMutation.isPending}
+                  >
+                    {disable2FAMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    Disable 2FA
+                  </Button>
                 </div>
               </CardContent>
             </Card>

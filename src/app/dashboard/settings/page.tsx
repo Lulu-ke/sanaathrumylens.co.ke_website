@@ -253,6 +253,15 @@ export default function SettingsPage() {
                     <Input value={emailSettings.smtp_user || ""} onChange={(e) => setEmailSettings({ ...emailSettings, smtp_user: e.target.value })} placeholder="noreply@example.com" />
                   </div>
                   <div className="space-y-2">
+                    <Label>SMTP Password</Label>
+                    <Input
+                      type="password"
+                      value={emailSettings.smtp_pass || ""}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, smtp_pass: e.target.value })}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Newsletter From Name</Label>
                     <Input value={emailSettings.newsletter_from_name || ""} onChange={(e) => setEmailSettings({ ...emailSettings, newsletter_from_name: e.target.value })} placeholder="Sanaa Through My Lens" />
                   </div>

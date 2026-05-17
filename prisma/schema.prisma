@@ -21,9 +21,10 @@ model User {
   bio           String?
   role          String   @default("READER")  // SUPER_ADMIN, ADMIN, EDITOR, AUTHOR, MODERATOR, READER
   isActive      Boolean  @default(true)
-  twoFactorCode String?
-  twoFactorExp  DateTime?
-  emailVerified DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorCode    String?
+  twoFactorExp     DateTime?
+  emailVerified    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
