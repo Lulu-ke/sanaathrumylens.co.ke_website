@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { SearchDialog } from '@/components/blog/search-dialog';
 import { NotificationBell } from '@/components/layout/notification-bell';
+import { PushNotificationPrompt } from '@/components/layout/push-notification-prompt';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,6 +86,7 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { data: session } = useSession();
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -157,6 +159,8 @@ export function Header() {
               </Button>
 
               <NotificationBell />
+
+              {session?.user?.id && <PushNotificationPrompt />}
 
               {mounted && (
                 <Button

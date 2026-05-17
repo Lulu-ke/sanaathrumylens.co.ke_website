@@ -87,7 +87,10 @@ export async function POST(
         batch.map(async (subscriber) => {
           try {
             const unsubscribeUrl = `${process.env.NEXTAUTH_URL}/api/newsletter/unsubscribe?token=${subscriber.token}`;
-            const htmlContent = `
+            const trackingBaseUrl = `${process.env.NEXTAUTH_URL}/api/campaigns/track?campaignId=${campaign.id}`;
+
+            // Build the base HTML
+            let htmlContent = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: #f97316; padding: 20px; text-align: center;">
                   <h1 style="color: white; margin: 0; font-size: 24px;">Sanaa Through My Lens</h1>
@@ -101,6 +104,21 @@ export async function POST(
                 </div>
               </div>
             `;
+
+            // Wrap all href links with click tracking (skip already-tracked links)
+            htmlContent = htmlContent.replace(
+              /href="(?!https?:\/\/[^\s"]*\/api\/campaigns\/track)([^"]+)"/g,
+              (match, url) => {
+                return `href="${trackingBaseUrl}&type=click&url=${encodeURIComponent(url)}"`;
+              }
+            );
+
+            // Add open tracking pixel before the closing </div>
+            const trackingPixel = `<img src="${trackingBaseUrl}&type=open" width="1" height="1" alt="" style="display:none" />`;
+            htmlContent = htmlContent.replace(
+              /<\/div>\s*$/,
+              `${trackingPixel}</div>`
+            );
 
             await transporter.sendMail({
               from: `"Sanaa Through My Lens" <${smtpUser}>`,

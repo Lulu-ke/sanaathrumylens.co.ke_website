@@ -11,6 +11,7 @@ import { TrendingTicker } from '@/components/blog/trending-ticker';
 import { PostCard } from '@/components/blog/post-card';
 import { EventCard } from '@/components/blog/event-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
+import { AdSlot } from '@/components/blog/ad-slot';
 
 interface CategoryWithCount {
   id: string;
@@ -316,6 +317,11 @@ export function HomepageClient({
             </Button>
           </div>
         )}
+
+        {/* Between Posts Ad */}
+        <div className="mt-8">
+          <AdSlot placement="BETWEEN_POSTS" />
+        </div>
       </section>
 
       {/* Events Section */}

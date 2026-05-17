@@ -12,6 +12,7 @@ import { BookmarkButton } from '@/components/blog/bookmark-button';
 import { CommentSection } from '@/components/blog/comment-section';
 import { PostCard } from '@/components/blog/post-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
+import { AdSlot } from '@/components/blog/ad-slot';
 
 interface PostDetailClientProps {
   post: {
@@ -27,6 +28,7 @@ interface PostDetailClientProps {
     updatedAt: string;
     allowComments: boolean;
     isBookmarked?: boolean;
+    isSponsored: boolean;
     author: { id: string; name: string; username: string; image: string | null; bio: string | null };
     categories: { category: { id: string; name: string; slug: string; color: string | null } }[];
     tags: { tag: { id: string; name: string; slug: string } }[];
@@ -69,18 +71,27 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
 
       {/* Header */}
       <header className="mb-8">
-        {primaryCategory && (
-          <Badge
-            className="mb-4 text-sm"
-            style={{
-              backgroundColor: primaryCategory.color || undefined,
-              color: '#fff',
-              border: 'none',
-            }}
-          >
-            {primaryCategory.name}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2 mb-4">
+          {primaryCategory && (
+            <Badge
+              className="text-sm"
+              style={{
+                backgroundColor: primaryCategory.color || undefined,
+                color: '#fff',
+                border: 'none',
+              }}
+            >
+              {primaryCategory.name}
+            </Badge>
+          )}
+          {post.isSponsored && (
+            <Badge
+              className="text-sm bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/25"
+            >
+              Sponsored
+            </Badge>
+          )}
+        </div>
         <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-4">
           {post.title}
         </h1>
@@ -148,11 +159,21 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
         </div>
       )}
 
+      {/* In-Article Ad */}
+      <AdSlot placement="IN_ARTICLE" />
+
       {/* Article Content */}
       <div
         className="article-content font-serif text-base sm:text-lg leading-relaxed text-foreground/90 max-w-none"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
+
+      {/* Sponsored Disclosure */}
+      {post.isSponsored && (
+        <p className="mt-6 text-xs text-muted-foreground italic bg-muted/50 rounded-md px-4 py-3">
+          This article is sponsored content. Learn more about our advertising policy.
+        </p>
+      )}
 
       {/* Tags */}
       {post.tags.length > 0 && (
@@ -226,6 +247,9 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
       {/* Comments */}
       <Separator className="my-8" />
       <CommentSection postId={post.id} allowComments={post.allowComments} />
+
+      {/* Footer Ad */}
+      <AdSlot placement="FOOTER" />
     </article>
   );
 }

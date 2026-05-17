@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Edge-compatible constants (do NOT import from auth-helpers — uses Node.js modules)
-const DASHBOARD_ROLES = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR", "MODERATOR"];
+const DASHBOARD_ROLES = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR", "MODERATOR", "READER"];
 
 const ROLE_HIERARCHY: Record<string, number> = {
   SUPER_ADMIN: 6,
@@ -22,6 +22,16 @@ const publicGetApiRoutes = [
   "/api/events",
   "/api/settings",
   "/api/ads",
+  "/api/artists",
+  "/api/campaigns/track",
+];
+
+// API routes that are public for specific POST requests (no auth required)
+const publicPostApiRoutes = [
+  "/api/newsletter",
+  "/api/ads/track",
+  "/api/sponsored/submit",
+  "/api/analytics/track",
 ];
 
 // Role requirements for specific API route prefixes
@@ -85,10 +95,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Allow newsletter subscribe (POST) without auth
+    // Allow specific POST routes without auth (newsletter subscribe, ad tracking, sponsored submit, analytics)
+    const isPublicPostApi = publicPostApiRoutes.some((route) =>
+      pathname.startsWith(route)
+    );
+    if (isPublicPostApi && request.method === "POST") {
+      return NextResponse.next();
+    }
+
+    // Allow newsletter unsubscribe (GET) without auth
     if (
-      pathname.startsWith("/api/newsletter") &&
-      request.method === "POST"
+      pathname.startsWith("/api/newsletter/unsubscribe") &&
+      request.method === "GET"
     ) {
       return NextResponse.next();
     }
@@ -145,7 +163,13 @@ export async function middleware(request: NextRequest) {
     const payload = parseJWTPayload(sessionToken);
     const userRole = (payload?.role as string) || "READER";
 
-    if (!DASHBOARD_ROLES.includes(userRole)) {
+    // READERS can only access /dashboard and /dashboard/reader and /dashboard/profile
+    if (userRole === "READER") {
+      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/profile"];
+      if (!allowedReaderPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+        return NextResponse.redirect(new URL("/dashboard/reader", request.url));
+      }
+    } else if (!DASHBOARD_ROLES.includes(userRole)) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 

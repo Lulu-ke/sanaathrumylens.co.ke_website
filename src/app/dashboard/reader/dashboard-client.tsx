@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bookmark, MessageCircle, Settings, Trash2, ExternalLink } from 'lucide-react';
+import { Bookmark, MessageCircle, Settings, Trash2, ExternalLink, Mail, Bell, Monitor, User as UserIcon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 interface ReaderDashboardClientProps {
@@ -43,6 +48,47 @@ interface ReaderDashboardClientProps {
 export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<'bookmarks' | 'comments' | 'settings'>('bookmarks');
   const [bookmarkList, setBookmarkList] = useState(bookmarks);
+  const { theme, setTheme } = useTheme();
+
+  // Settings state — persisted in localStorage (lazy init reads from storage on client)
+  const [settings, setSettings] = useState(() => {
+    if (typeof window === 'undefined') {
+      return { receiveNewsletter: true, emailNotifications: true, browserNotifications: false };
+    }
+    const storedNewsletter = localStorage.getItem('reader-receive-newsletter');
+    const storedEmailNotif = localStorage.getItem('reader-email-notifications');
+    const storedBrowserNotif = localStorage.getItem('reader-browser-notifications');
+    return {
+      receiveNewsletter: storedNewsletter !== null ? storedNewsletter === 'true' : true,
+      emailNotifications: storedEmailNotif !== null ? storedEmailNotif === 'true' : true,
+      browserNotifications: storedBrowserNotif !== null ? storedBrowserNotif === 'true' : false,
+    };
+  });
+
+  const handleToggleNewsletter = (checked: boolean) => {
+    setSettings((prev) => ({ ...prev, receiveNewsletter: checked }));
+    localStorage.setItem('reader-receive-newsletter', String(checked));
+    toast.success(checked ? 'Newsletter subscription enabled' : 'Newsletter subscription disabled');
+  };
+
+  const handleToggleEmailNotif = (checked: boolean) => {
+    setSettings((prev) => ({ ...prev, emailNotifications: checked }));
+    localStorage.setItem('reader-email-notifications', String(checked));
+    toast.success(checked ? 'Email notifications enabled' : 'Email notifications disabled');
+  };
+
+  const handleToggleBrowserNotif = (checked: boolean) => {
+    setSettings((prev) => ({ ...prev, browserNotifications: checked }));
+    localStorage.setItem('reader-browser-notifications', String(checked));
+    if (checked && typeof window !== 'undefined' && 'Notification' in window) {
+      Notification.requestPermission();
+    }
+    toast.success(checked ? 'Browser notifications enabled' : 'Browser notifications disabled');
+  };
+
+  const handleDarkMode = (checked: boolean) => {
+    setTheme(checked ? 'dark' : 'light');
+  };
 
   const handleRemoveBookmark = async (postId: string) => {
     try {
@@ -215,16 +261,143 @@ export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashb
       )}
 
       {activeTab === 'settings' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif">Profile Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">
-              Profile settings and newsletter preferences coming soon.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {/* Newsletter Preferences */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <CardTitle className="font-serif text-lg">Newsletter Preferences</CardTitle>
+              </div>
+              <CardDescription>Manage your newsletter subscription</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="newsletter-toggle">Receive Newsletter</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Get our latest stories and updates delivered to your inbox
+                  </p>
+                </div>
+                <Switch
+                  id="newsletter-toggle"
+                  checked={settings.receiveNewsletter}
+                  onCheckedChange={handleToggleNewsletter}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notification Preferences */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <CardTitle className="font-serif text-lg">Notification Preferences</CardTitle>
+              </div>
+              <CardDescription>Choose how you want to be notified</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="email-notif-toggle">Email Notifications</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive email notifications for new comments and replies
+                  </p>
+                </div>
+                <Switch
+                  id="email-notif-toggle"
+                  checked={settings.emailNotifications}
+                  onCheckedChange={handleToggleEmailNotif}
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="browser-notif-toggle">Browser Notifications</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Get push notifications in your browser
+                  </p>
+                </div>
+                <Switch
+                  id="browser-notif-toggle"
+                  checked={settings.browserNotifications}
+                  onCheckedChange={handleToggleBrowserNotif}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Display Preferences */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Monitor className="h-5 w-5 text-primary" />
+                <CardTitle className="font-serif text-lg">Display Preferences</CardTitle>
+              </div>
+              <CardDescription>Customize your viewing experience</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Switch between light and dark themes
+                  </p>
+                </div>
+                <Switch
+                  id="dark-mode-toggle"
+                  checked={theme === 'dark'}
+                  onCheckedChange={handleDarkMode}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Profile Section (Read-Only) */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <UserIcon className="h-5 w-5 text-primary" />
+                <CardTitle className="font-serif text-lg">Profile Information</CardTitle>
+              </div>
+              <CardDescription>Your current profile details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-name">Name</Label>
+                <Input
+                  id="profile-name"
+                  value={user.name}
+                  readOnly
+                  className="bg-muted cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-email">Email</Label>
+                <Input
+                  id="profile-email"
+                  value={user.email}
+                  readOnly
+                  className="bg-muted cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-bio">Bio</Label>
+                <Textarea
+                  id="profile-bio"
+                  value="No bio yet"
+                  readOnly
+                  className="bg-muted cursor-not-allowed resize-none"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Profile editing will be available in a future update.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

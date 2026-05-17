@@ -28,6 +28,7 @@ import {
   UserPlus,
   BarChart3,
   CalendarDays,
+  Bookmark,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState } from "react"
@@ -116,6 +117,7 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
   ],
   READER: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Bookmarks", href: "/dashboard/reader", icon: Bookmark },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
 }

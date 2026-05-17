@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const placement = searchParams.get("placement") || undefined;
     const status = searchParams.get("status") || undefined;
+    const limitParam = searchParams.get("limit");
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
     const where: Record<string, unknown> = {};
     if (placement) where.placement = placement;
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
     const ads = await db.ad.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      ...(limit && limit > 0 ? { take: limit } : {}),
     });
 
     return NextResponse.json(ads);
