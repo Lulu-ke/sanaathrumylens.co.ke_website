@@ -63,6 +63,14 @@ const SUBDOMAINS: SubdomainConfig[] = [
     accentColor: "#0284c7",
     minRoleLevel: 3,
   },
+  {
+    subdomain: "moderator",
+    role: "MODERATOR",
+    label: "Moderator Hub",
+    description: "Moderate comments, review flagged content, community safety",
+    accentColor: "#7c3aed",
+    minRoleLevel: 2,
+  },
 ];
 
 // API routes that are public for GET requests
@@ -466,8 +474,8 @@ export async function middleware(request: NextRequest) {
     // Higher roles should be redirected to their subdomain dashboard
     const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
 
-    if (userLevel >= 3) {
-      // AUTHOR, EDITOR, ADMIN, SUPER_ADMIN — redirect to their subdomain
+    if (userLevel >= 2) {
+      // MODERATOR, AUTHOR, EDITOR, ADMIN, SUPER_ADMIN — redirect to their subdomain
       // But only if we're on the production domain (not localhost)
       if (hostname === ROOT_DOMAIN || hostname === `www.${ROOT_DOMAIN}`) {
         const correctSubdomain = getSubdomainForRole(userRole);

@@ -51,6 +51,14 @@ export const SUBDOMAINS: SubdomainConfig[] = [
     accentColor: "#0284c7", // sky-600
     minRoleLevel: 3,
   },
+  {
+    subdomain: "moderator",
+    role: "MODERATOR",
+    label: "Moderator Hub",
+    description: "Moderate comments, review flagged content, community safety",
+    accentColor: "#7c3aed", // violet-600
+    minRoleLevel: 2,
+  },
 ];
 
 // The base domain (no subdomain) — public blog + reader dashboard

@@ -145,6 +145,7 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
   MODERATOR: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
