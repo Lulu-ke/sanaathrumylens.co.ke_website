@@ -182,7 +182,11 @@ function buildBaseDomainUrl(pathname: string, request: NextRequest): URL {
 
 /**
  * Get the session token and parsed role from the request cookies.
- * Uses next-auth/jwt getToken() which properly handles encrypted JWE tokens.
+ * 
+ * Strategy:
+ * 1. Check for a custom "x-role" cookie set during login (non-encrypted, subdomain-shared)
+ * 2. Fall back to next-auth/jwt getToken() for encrypted JWE tokens
+ * 3. Last resort: try plain JWT parsing
  */
 async function getUserRole(request: NextRequest): Promise<{ sessionToken: string | null; role: string }> {
   const sessionToken =
@@ -193,8 +197,14 @@ async function getUserRole(request: NextRequest): Promise<{ sessionToken: string
     return { sessionToken: null, role: "READER" };
   }
 
+  // Method 1: Check custom role cookie (set by our /api/auth/session wrapper)
+  const roleCookie = request.cookies.get("x-user-role")?.value;
+  if (roleCookie && roleCookie !== "READER") {
+    return { sessionToken, role: roleCookie };
+  }
+
+  // Method 2: Try getToken() from next-auth/jwt
   try {
-    // Use getToken to properly decrypt the JWE token
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
@@ -205,11 +215,13 @@ async function getUserRole(request: NextRequest): Promise<{ sessionToken: string
       return { sessionToken, role };
     }
   } catch {
-    // Fallback: try parsing as plain JWT (for non-encrypted tokens)
-    const payload = parseJWTPayload(sessionToken);
-    if (payload?.role) {
-      return { sessionToken, role: payload.role as string };
-    }
+    // getToken() failed — likely NEXTAUTH_SECRET not available in Edge runtime
+  }
+
+  // Method 3: Fallback: try parsing as plain JWT
+  const payload = parseJWTPayload(sessionToken);
+  if (payload?.role) {
+    return { sessionToken, role: payload.role as string };
   }
 
   return { sessionToken, role: "READER" };
@@ -234,6 +246,12 @@ export async function middleware(request: NextRequest) {
   }
 
   const { sessionToken, role: userRole } = await getUserRole(request);
+
+  // Whenever we have a session token and a known non-READER role,
+  // set the x-user-role cookie so subdomain middleware can read it.
+  // This works around the Edge runtime limitation where getToken()
+  // can't decrypt JWE tokens because NEXTAUTH_SECRET is unavailable.
+  const shouldSetRoleCookie = sessionToken && userRole !== "READER" && !request.cookies.get("x-user-role")?.value;
 
   // ============================================
   // Subdomain-specific routing
@@ -455,7 +473,7 @@ export async function middleware(request: NextRequest) {
         const correctSubdomain = getSubdomainForRole(userRole);
         if (correctSubdomain) {
           const redirectUrl = buildSubdomainUrl(correctSubdomain.subdomain, pathname, request);
-          return NextResponse.redirect(redirectUrl);
+          return addRoleCookie(NextResponse.redirect(redirectUrl), shouldSetRoleCookie, userRole);
         }
       }
       // On localhost or other domains, fall through to normal dashboard access
@@ -471,11 +489,30 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    return NextResponse.next();
+    return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole);
   }
 
   // All other routes (public blog, etc.) — pass through
-  return NextResponse.next();
+  return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole);
+}
+
+/**
+ * Add the x-user-role cookie to the response if needed.
+ * This ensures subdomain middleware can read the user's role
+ * even when getToken() can't decrypt JWE tokens in Edge runtime.
+ */
+function addRoleCookie(response: NextResponse, shouldSet: boolean, role: string): NextResponse {
+  if (shouldSet) {
+    response.cookies.set("x-user-role", role, {
+      path: "/",
+      domain: `.${ROOT_DOMAIN}`,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      maxAge: 24 * 60 * 60, // 24 hours, same as session
+    });
+  }
+  return response;
 }
 
 export const config = {
