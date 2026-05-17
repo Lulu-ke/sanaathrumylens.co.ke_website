@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQuery } from "@tanstack/react-query"
@@ -12,6 +12,8 @@ import {
   Loader2,
   ImageIcon,
   X,
+  CloudOff,
+  RotateCcw,
 } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,6 +37,11 @@ import {
 } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { TiptapEditor } from "@/components/editor/tiptap-editor"
+import { SaveStatusIndicator } from "@/components/editor/save-status-indicator"
+import { OfflineBanner } from "@/components/editor/offline-banner"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { useOnlineStatus } from "@/hooks/use-online-status"
+import { getDraft, deleteDraft, type OfflineDraft } from "@/lib/offline-db"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -54,6 +61,7 @@ interface Tag {
 export default function NewPostPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const isOnline = useOnlineStatus()
 
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
@@ -68,6 +76,113 @@ export default function NewPostPage() {
   const [scheduledAt, setScheduledAt] = useState<Date | undefined>(undefined)
   const [isSaving, setIsSaving] = useState(false)
   const [tagInput, setTagInput] = useState("")
+
+  // Draft recovery state
+  const [draftRecovery, setDraftRecovery] = useState<OfflineDraft | null>(null)
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false)
+
+  // Generate a stable draft ID for this editing session
+  const draftIdRef = useRef(`new-post-${crypto.randomUUID()}`)
+
+  // Collect form state into a data object for auto-save
+  const formData = useMemo(
+    () => ({
+      title,
+      slug,
+      excerpt,
+      content,
+      featuredImage,
+      selectedCategories,
+      selectedTags,
+      seoTitle,
+      seoDescription,
+      ogImage,
+      scheduledAt: scheduledAt?.toISOString() ?? null,
+    }),
+    [
+      title,
+      slug,
+      excerpt,
+      content,
+      featuredImage,
+      selectedCategories,
+      selectedTags,
+      seoTitle,
+      seoDescription,
+      ogImage,
+      scheduledAt,
+    ]
+  )
+
+  // Auto-save hook
+  const {
+    saveStatus,
+    lastSavedAt,
+    hasUnsavedChanges,
+    saveNow,
+    draftData,
+  } = useAutoSave({
+    draftId: draftIdRef.current,
+    entityType: "post",
+    data: formData,
+    interval: 30000,
+    debounceMs: 2000,
+    serverSaveUrl: "/api/posts",
+    serverSaveMethod: "POST",
+    enabled: true,
+  })
+
+  // Check for existing draft on mount
+  useEffect(() => {
+    async function checkForDraft() {
+      try {
+        const draft = await getDraft(draftIdRef.current)
+        if (draft && draft.data && Object.keys(draft.data).length > 0) {
+          // Check if draft has meaningful content
+          const d = draft.data
+          if (d.title || d.content || d.excerpt) {
+            setDraftRecovery(draft)
+            setShowRecoveryBanner(true)
+          }
+        }
+      } catch {
+        // IndexedDB not available, that's fine
+      }
+    }
+    checkForDraft()
+  }, [])
+
+  // Restore draft
+  const restoreDraft = () => {
+    if (!draftRecovery?.data) return
+    const d = draftRecovery.data
+    if (d.title) setTitle(d.title as string)
+    if (d.slug) setSlug(d.slug as string)
+    if (d.excerpt) setExcerpt(d.excerpt as string)
+    if (d.content) setContent(d.content as string)
+    if (d.featuredImage) setFeaturedImage(d.featuredImage as string)
+    if (d.selectedCategories)
+      setSelectedCategories(d.selectedCategories as string[])
+    if (d.selectedTags) setSelectedTags(d.selectedTags as string[])
+    if (d.seoTitle) setSeoTitle(d.seoTitle as string)
+    if (d.seoDescription) setSeoDescription(d.seoDescription as string)
+    if (d.ogImage) setOgImage(d.ogImage as string)
+    if (d.scheduledAt) setScheduledAt(new Date(d.scheduledAt as string))
+    setShowRecoveryBanner(false)
+    toast.success("Draft restored")
+  }
+
+  // Discard draft
+  const discardDraft = async () => {
+    try {
+      await deleteDraft(draftIdRef.current)
+    } catch {
+      // Ignore
+    }
+    setDraftRecovery(null)
+    setShowRecoveryBanner(false)
+    toast.success("Draft discarded")
+  }
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["categories"],
@@ -102,6 +217,11 @@ export default function NewPostPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (!isOnline) {
+      toast.error("Cannot upload images while offline")
+      return
+    }
+
     const formData = new FormData()
     formData.append("file", file)
 
@@ -120,6 +240,13 @@ export default function NewPostPage() {
   const handleSave = async (status: string) => {
     if (!title.trim()) {
       toast.error("Title is required")
+      return
+    }
+
+    // If offline, save locally and queue for sync
+    if (!isOnline) {
+      await saveNow()
+      toast.info("Saved offline — will sync when you're back online")
       return
     }
 
@@ -155,6 +282,14 @@ export default function NewPostPage() {
       }
 
       const post = await res.json()
+
+      // Clean up local draft after successful save
+      try {
+        await deleteDraft(draftIdRef.current)
+      } catch {
+        // Ignore
+      }
+
       toast.success(
         status === "DRAFT"
           ? "Draft saved"
@@ -186,6 +321,10 @@ export default function NewPostPage() {
 
   const createTag = async () => {
     if (!tagInput.trim()) return
+    if (!isOnline) {
+      toast.error("Cannot create tags while offline")
+      return
+    }
     try {
       const res = await fetch("/api/tags", {
         method: "POST",
@@ -204,6 +343,42 @@ export default function NewPostPage() {
 
   return (
     <div className="space-y-6">
+      {/* Offline Banner */}
+      <OfflineBanner />
+
+      {/* Draft Recovery Banner */}
+      {showRecoveryBanner && draftRecovery && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <RotateCcw className="size-4 shrink-0" />
+                <p className="text-sm">
+                  You have an unsaved draft from{" "}
+                  <span className="font-medium">
+                    {new Date(draftRecovery.updatedAt).toLocaleString()}
+                  </span>
+                  . Resume editing?
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" onClick={restoreDraft} variant="default">
+                  Resume
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={discardDraft}
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                >
+                  Discard
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -214,7 +389,14 @@ export default function NewPostPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">New Post</h1>
-            <p className="text-muted-foreground">Create a new blog post</p>
+            <div className="flex items-center gap-3 mt-0.5">
+              <p className="text-muted-foreground">Create a new blog post</p>
+              <SaveStatusIndicator
+                status={saveStatus}
+                lastSavedAt={lastSavedAt}
+                hasUnsavedChanges={hasUnsavedChanges}
+              />
+            </div>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -223,19 +405,34 @@ export default function NewPostPage() {
             onClick={() => handleSave("DRAFT")}
             disabled={isSaving}
           >
-            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-            Save Draft
+            {isSaving ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : !isOnline ? (
+              <CloudOff className="mr-2 size-4" />
+            ) : (
+              <Save className="mr-2 size-4" />
+            )}
+            {!isOnline ? "Save Offline" : "Save Draft"}
           </Button>
           <Button
             onClick={() => handleSave("PENDING_REVIEW")}
-            disabled={isSaving}
+            disabled={isSaving || !isOnline}
+            title={!isOnline ? "Cannot submit while offline" : undefined}
           >
-            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
+            {isSaving ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 size-4" />
+            )}
             Submit for Review
           </Button>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={!isOnline}
+              >
                 <Calendar className="size-4" />
                 Schedule
               </Button>
@@ -253,7 +450,7 @@ export default function NewPostPage() {
                     size="sm"
                     className="w-full"
                     onClick={() => handleSave("SCHEDULED")}
-                    disabled={isSaving}
+                    disabled={isSaving || !isOnline}
                   >
                     Schedule for {format(scheduledAt, "PPP")}
                   </Button>
@@ -270,7 +467,9 @@ export default function NewPostPage() {
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-base font-semibold">Title</Label>
+                <Label htmlFor="title" className="text-base font-semibold">
+                  Title
+                </Label>
                 <Input
                   id="title"
                   value={title}
@@ -342,12 +541,15 @@ export default function NewPostPage() {
               ) : (
                 <label className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
                   <ImageIcon className="size-8 text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground">Click to upload</span>
+                  <span className="text-sm text-muted-foreground">
+                    {isOnline ? "Click to upload" : "Online required to upload"}
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
                     className="hidden"
+                    disabled={!isOnline}
                   />
                 </label>
               )}
@@ -364,7 +566,9 @@ export default function NewPostPage() {
                 {categories?.map((cat) => (
                   <Badge
                     key={cat.id}
-                    variant={selectedCategories.includes(cat.id) ? "default" : "outline"}
+                    variant={
+                      selectedCategories.includes(cat.id) ? "default" : "outline"
+                    }
                     className="cursor-pointer"
                     onClick={() => toggleCategory(cat.id)}
                   >
@@ -386,9 +590,16 @@ export default function NewPostPage() {
                   placeholder="New tag name"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createTag())}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), createTag())
+                  }
+                  disabled={!isOnline}
                 />
-                <Button size="sm" onClick={createTag} disabled={!tagInput.trim()}>
+                <Button
+                  size="sm"
+                  onClick={createTag}
+                  disabled={!tagInput.trim() || !isOnline}
+                >
                   Add
                 </Button>
               </div>
@@ -396,7 +607,9 @@ export default function NewPostPage() {
                 {tags?.map((tag) => (
                   <Badge
                     key={tag.id}
-                    variant={selectedTags.includes(tag.id) ? "default" : "outline"}
+                    variant={
+                      selectedTags.includes(tag.id) ? "default" : "outline"
+                    }
                     className="cursor-pointer"
                     onClick={() => toggleTag(tag.id)}
                   >

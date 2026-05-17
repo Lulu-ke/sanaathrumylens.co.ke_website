@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   History,
+  CloudOff,
+  RotateCcw,
 } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,6 +47,15 @@ import {
 } from "@/components/ui/dialog"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { TiptapEditor } from "@/components/editor/tiptap-editor"
+import { SaveStatusIndicator } from "@/components/editor/save-status-indicator"
+import { OfflineBanner } from "@/components/editor/offline-banner"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { useOnlineStatus } from "@/hooks/use-online-status"
+import {
+  getDraft,
+  deleteDraft,
+  type OfflineDraft,
+} from "@/lib/offline-db"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -66,9 +77,25 @@ interface PostData {
   tags: { tag: { id: string; name: string } }[]
 }
 
-interface Category { id: string; name: string; slug: string; color: string | null }
-interface Tag { id: string; name: string; slug: string }
-interface Revision { id: string; title: string; changeNote: string | null; version: number; createdAt: string; author: { name: string } }
+interface Category {
+  id: string
+  name: string
+  slug: string
+  color: string | null
+}
+interface Tag {
+  id: string
+  name: string
+  slug: string
+}
+interface Revision {
+  id: string
+  title: string
+  changeNote: string | null
+  version: number
+  createdAt: string
+  author: { name: string }
+}
 
 export default function EditPostPage() {
   const router = useRouter()
@@ -76,6 +103,7 @@ export default function EditPostPage() {
   const postId = params.id as string
   const { data: session } = useSession()
   const queryClient = useQueryClient()
+  const isOnline = useOnlineStatus()
 
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
@@ -92,6 +120,14 @@ export default function EditPostPage() {
   const [tagInput, setTagInput] = useState("")
   const [showRevisions, setShowRevisions] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+
+  // Draft recovery state
+  const [draftRecovery, setDraftRecovery] = useState<OfflineDraft | null>(null)
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false)
+  const [postLoaded, setPostLoaded] = useState(false)
+
+  // Generate a stable draft ID for this editing session based on postId
+  const draftIdRef = useRef(`edit-post-${postId}`)
 
   const role = (session?.user?.role as string) || "AUTHOR"
   const canReview = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(role)
@@ -147,16 +183,122 @@ export default function EditPostPage() {
       setSeoDescription(post.seoDescription || "")
       setOgImage(post.ogImage || "")
       if (post.scheduledAt) setScheduledAt(new Date(post.scheduledAt))
+      setPostLoaded(true)
     }
   }, [post])
+
+  // Check for existing draft after post loads
+  useEffect(() => {
+    if (!postLoaded) return
+    async function checkForDraft() {
+      try {
+        const draft = await getDraft(draftIdRef.current)
+        if (draft && draft.data && Object.keys(draft.data).length > 0) {
+          // Only show recovery if the draft is newer than the post data
+          const d = draft.data
+          if (d.title || d.content || d.excerpt) {
+            setDraftRecovery(draft)
+            setShowRecoveryBanner(true)
+          }
+        }
+      } catch {
+        // IndexedDB not available, that's fine
+      }
+    }
+    checkForDraft()
+  }, [postLoaded])
+
+  // Restore draft
+  const restoreDraft = () => {
+    if (!draftRecovery?.data) return
+    const d = draftRecovery.data
+    if (d.title) setTitle(d.title as string)
+    if (d.slug) setSlug(d.slug as string)
+    if (d.excerpt) setExcerpt(d.excerpt as string)
+    if (d.content) setContent(d.content as string)
+    if (d.featuredImage) setFeaturedImage(d.featuredImage as string)
+    if (d.selectedCategories)
+      setSelectedCategories(d.selectedCategories as string[])
+    if (d.selectedTags) setSelectedTags(d.selectedTags as string[])
+    if (d.seoTitle) setSeoTitle(d.seoTitle as string)
+    if (d.seoDescription) setSeoDescription(d.seoDescription as string)
+    if (d.ogImage) setOgImage(d.ogImage as string)
+    if (d.scheduledAt) setScheduledAt(new Date(d.scheduledAt as string))
+    setShowRecoveryBanner(false)
+    toast.success("Draft restored")
+  }
+
+  // Discard draft
+  const discardDraft = async () => {
+    try {
+      await deleteDraft(draftIdRef.current)
+    } catch {
+      // Ignore
+    }
+    setDraftRecovery(null)
+    setShowRecoveryBanner(false)
+    toast.success("Draft discarded")
+  }
+
+  // Collect form state into a data object for auto-save
+  const formData = useMemo(
+    () => ({
+      title,
+      slug,
+      excerpt,
+      content,
+      featuredImage,
+      selectedCategories,
+      selectedTags,
+      seoTitle,
+      seoDescription,
+      ogImage,
+      scheduledAt: scheduledAt?.toISOString() ?? null,
+    }),
+    [
+      title,
+      slug,
+      excerpt,
+      content,
+      featuredImage,
+      selectedCategories,
+      selectedTags,
+      seoTitle,
+      seoDescription,
+      ogImage,
+      scheduledAt,
+    ]
+  )
+
+  // Auto-save hook
+  const { saveStatus, lastSavedAt, hasUnsavedChanges, saveNow } = useAutoSave({
+    draftId: draftIdRef.current,
+    entityType: "post",
+    data: formData,
+    interval: 30000,
+    debounceMs: 2000,
+    serverSaveUrl: `/api/posts/${postId}`,
+    serverSaveMethod: "PATCH",
+    entityId: postId,
+    enabled: postLoaded,
+  })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const formData = new FormData()
-    formData.append("file", file)
+
+    if (!isOnline) {
+      toast.error("Cannot upload images while offline")
+      return
+    }
+
+    const formDataUpload = new FormData()
+    formDataUpload.append("file", file)
     try {
-      const res = await fetch("/api/media", { method: "POST", body: formData })
+      const res = await fetch("/api/media", {
+        method: "POST",
+        body: formDataUpload,
+      })
       const data = await res.json()
       if (data.url) {
         setFeaturedImage(data.url)
@@ -172,6 +314,14 @@ export default function EditPostPage() {
       toast.error("Title is required")
       return
     }
+
+    // If offline, save locally and queue for sync
+    if (!isOnline) {
+      await saveNow()
+      toast.info("Saved offline — will sync when you're back online")
+      return
+    }
+
     setIsSaving(true)
     try {
       const body: Record<string, unknown> = {
@@ -199,12 +349,23 @@ export default function EditPostPage() {
         const err = await res.json()
         throw new Error(err.error || "Failed to save post")
       }
+
+      // Clean up local draft after successful save
+      try {
+        await deleteDraft(draftIdRef.current)
+      } catch {
+        // Ignore
+      }
+
       queryClient.invalidateQueries({ queryKey: ["post", postId] })
       toast.success(
-        status === "DRAFT" ? "Draft saved" :
-        status === "PENDING_REVIEW" ? "Submitted for review" :
-        status === "SCHEDULED" ? "Post scheduled" :
-        "Post updated"
+        status === "DRAFT"
+          ? "Draft saved"
+          : status === "PENDING_REVIEW"
+          ? "Submitted for review"
+          : status === "SCHEDULED"
+          ? "Post scheduled"
+          : "Post updated"
       )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save post")
@@ -214,6 +375,10 @@ export default function EditPostPage() {
   }
 
   const handleReview = async (action: "approve" | "reject") => {
+    if (!isOnline) {
+      toast.error("Cannot review posts while offline")
+      return
+    }
     try {
       const res = await fetch(`/api/posts/${postId}/review`, {
         method: "PATCH",
@@ -245,6 +410,10 @@ export default function EditPostPage() {
 
   const createTag = async () => {
     if (!tagInput.trim()) return
+    if (!isOnline) {
+      toast.error("Cannot create tags while offline")
+      return
+    }
     try {
       const res = await fetch("/api/tags", {
         method: "POST",
@@ -271,7 +440,13 @@ export default function EditPostPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    const variants: Record<
+      string,
+      {
+        label: string
+        variant: "default" | "secondary" | "destructive" | "outline"
+      }
+    > = {
       PUBLISHED: { label: "Published", variant: "default" },
       DRAFT: { label: "Draft", variant: "secondary" },
       PENDING_REVIEW: { label: "Pending Review", variant: "outline" },
@@ -280,12 +455,51 @@ export default function EditPostPage() {
       REJECTED: { label: "Rejected", variant: "destructive" },
       ARCHIVED: { label: "Archived", variant: "secondary" },
     }
-    const info = variants[status] || { label: status, variant: "secondary" as const }
+    const info = variants[status] || {
+      label: status,
+      variant: "secondary" as const,
+    }
     return <Badge variant={info.variant}>{info.label}</Badge>
   }
 
   return (
     <div className="space-y-6">
+      {/* Offline Banner */}
+      <OfflineBanner />
+
+      {/* Draft Recovery Banner */}
+      {showRecoveryBanner && draftRecovery && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <RotateCcw className="size-4 shrink-0" />
+                <p className="text-sm">
+                  You have an unsaved draft from{" "}
+                  <span className="font-medium">
+                    {new Date(draftRecovery.updatedAt).toLocaleString()}
+                  </span>
+                  . Resume editing?
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" onClick={restoreDraft} variant="default">
+                  Resume
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={discardDraft}
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                >
+                  Discard
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -299,20 +513,51 @@ export default function EditPostPage() {
               <h1 className="text-2xl font-bold tracking-tight">Edit Post</h1>
               {post && getStatusBadge(post.status)}
             </div>
-            <p className="text-muted-foreground">by {post?.author.name}</p>
+            <div className="flex items-center gap-3 mt-0.5">
+              <p className="text-muted-foreground">
+                by {post?.author.name}
+              </p>
+              <SaveStatusIndicator
+                status={saveStatus}
+                lastSavedAt={lastSavedAt}
+                hasUnsavedChanges={hasUnsavedChanges}
+              />
+            </div>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowRevisions(true)} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowRevisions(true)}
+            className="gap-2"
+          >
             <History className="size-4" />
             Revisions
           </Button>
-          <Button variant="outline" onClick={() => handleSave("DRAFT")} disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-            Save Draft
+          <Button
+            variant="outline"
+            onClick={() => handleSave("DRAFT")}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : !isOnline ? (
+              <CloudOff className="mr-2 size-4" />
+            ) : (
+              <Save className="mr-2 size-4" />
+            )}
+            {!isOnline ? "Save Offline" : "Save Draft"}
           </Button>
-          <Button onClick={() => handleSave("PENDING_REVIEW")} disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
+          <Button
+            onClick={() => handleSave("PENDING_REVIEW")}
+            disabled={isSaving || !isOnline}
+            title={!isOnline ? "Cannot submit while offline" : undefined}
+          >
+            {isSaving ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 size-4" />
+            )}
             Submit for Review
           </Button>
           {canReview && (
@@ -321,6 +566,7 @@ export default function EditPostPage() {
                 variant="outline"
                 className="gap-2 text-emerald-600 hover:text-emerald-700"
                 onClick={() => handleReview("approve")}
+                disabled={!isOnline}
               >
                 <CheckCircle2 className="size-4" />
                 Approve
@@ -329,12 +575,17 @@ export default function EditPostPage() {
                 variant="outline"
                 className="gap-2 text-destructive hover:text-destructive"
                 onClick={() => {
+                  if (!isOnline) {
+                    toast.error("Cannot reject posts while offline")
+                    return
+                  }
                   const reason = window.prompt("Reason for rejection:")
                   if (reason) {
                     setRejectionReason(reason)
                     handleReview("reject")
                   }
                 }}
+                disabled={!isOnline}
               >
                 <XCircle className="size-4" />
                 Reject
@@ -343,7 +594,11 @@ export default function EditPostPage() {
           )}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={!isOnline}
+              >
                 <Calendar className="size-4" />
                 Schedule
               </Button>
@@ -357,7 +612,12 @@ export default function EditPostPage() {
               />
               {scheduledAt && (
                 <div className="p-3 border-t">
-                  <Button size="sm" className="w-full" onClick={() => handleSave("SCHEDULED")} disabled={isSaving}>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleSave("SCHEDULED")}
+                    disabled={isSaving || !isOnline}
+                  >
                     Schedule for {format(scheduledAt, "PPP")}
                   </Button>
                 </div>
@@ -370,8 +630,12 @@ export default function EditPostPage() {
       {post?.rejectedReason && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
-            <p className="text-sm text-muted-foreground mt-1">{post.rejectedReason}</p>
+            <p className="text-sm font-medium text-destructive">
+              Rejection Reason:
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {post.rejectedReason}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -382,16 +646,35 @@ export default function EditPostPage() {
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-base font-semibold">Title</Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter post title..." className="text-lg" />
+                <Label htmlFor="title" className="text-base font-semibold">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter post title..."
+                  className="text-lg"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="url-friendly-slug" />
+                <Input
+                  id="slug"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="url-friendly-slug"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="excerpt">Excerpt</Label>
-                <Textarea id="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Brief description..." rows={3} />
+                <Textarea
+                  id="excerpt"
+                  value={excerpt}
+                  onChange={(e) => setExcerpt(e.target.value)}
+                  placeholder="Brief description..."
+                  rows={3}
+                />
               </div>
             </CardContent>
           </Card>
@@ -401,7 +684,11 @@ export default function EditPostPage() {
               <CardTitle className="text-base">Content</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <TiptapEditor content={content} onChange={setContent} placeholder="Start writing your story..." />
+              <TiptapEditor
+                content={content}
+                onChange={setContent}
+                placeholder="Start writing your story..."
+              />
             </CardContent>
           </Card>
         </div>
@@ -415,16 +702,33 @@ export default function EditPostPage() {
             <CardContent className="space-y-4">
               {featuredImage ? (
                 <div className="relative group">
-                  <img src={featuredImage} alt="Featured" className="w-full h-40 object-cover rounded-lg" />
-                  <Button variant="destructive" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7" onClick={() => setFeaturedImage("")}>
+                  <img
+                    src={featuredImage}
+                    alt="Featured"
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7"
+                    onClick={() => setFeaturedImage("")}
+                  >
                     <X className="size-3" />
                   </Button>
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
                   <ImageIcon className="size-8 text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground">Click to upload</span>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  <span className="text-sm text-muted-foreground">
+                    {isOnline ? "Click to upload" : "Online required to upload"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={!isOnline}
+                  />
                 </label>
               )}
             </CardContent>
@@ -437,7 +741,14 @@ export default function EditPostPage() {
             <CardContent>
               <div className="flex flex-wrap gap-2">
                 {categories?.map((cat) => (
-                  <Badge key={cat.id} variant={selectedCategories.includes(cat.id) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleCategory(cat.id)}>
+                  <Badge
+                    key={cat.id}
+                    variant={
+                      selectedCategories.includes(cat.id) ? "default" : "outline"
+                    }
+                    className="cursor-pointer"
+                    onClick={() => toggleCategory(cat.id)}
+                  >
                     {cat.name}
                   </Badge>
                 ))}
@@ -451,12 +762,33 @@ export default function EditPostPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex gap-2">
-                <Input placeholder="New tag" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createTag())} />
-                <Button size="sm" onClick={createTag} disabled={!tagInput.trim()}>Add</Button>
+                <Input
+                  placeholder="New tag"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), createTag())
+                  }
+                  disabled={!isOnline}
+                />
+                <Button
+                  size="sm"
+                  onClick={createTag}
+                  disabled={!tagInput.trim() || !isOnline}
+                >
+                  Add
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {tags?.map((tag) => (
-                  <Badge key={tag.id} variant={selectedTags.includes(tag.id) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleTag(tag.id)}>
+                  <Badge
+                    key={tag.id}
+                    variant={
+                      selectedTags.includes(tag.id) ? "default" : "outline"
+                    }
+                    className="cursor-pointer"
+                    onClick={() => toggleTag(tag.id)}
+                  >
                     {tag.name}
                   </Badge>
                 ))}
@@ -471,15 +803,28 @@ export default function EditPostPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>SEO Title</Label>
-                <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Custom SEO title" />
+                <Input
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value)}
+                  placeholder="Custom SEO title"
+                />
               </div>
               <div className="space-y-2">
                 <Label>SEO Description</Label>
-                <Textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} placeholder="Meta description" rows={3} />
+                <Textarea
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value)}
+                  placeholder="Meta description"
+                  rows={3}
+                />
               </div>
               <div className="space-y-2">
                 <Label>OG Image URL</Label>
-                <Input value={ogImage} onChange={(e) => setOgImage(e.target.value)} placeholder="https://example.com/image.jpg" />
+                <Input
+                  value={ogImage}
+                  onChange={(e) => setOgImage(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                />
               </div>
             </CardContent>
           </Card>
@@ -497,20 +842,37 @@ export default function EditPostPage() {
               {revisions.map((rev) => (
                 <div key={rev.id} className="border rounded-lg p-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Version {rev.version}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(rev.createdAt), "PPP p")}</span>
+                    <span className="font-medium text-sm">
+                      Version {rev.version}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(rev.createdAt), "PPP p")}
+                    </span>
                   </div>
                   <p className="text-sm mt-1">{rev.title}</p>
-                  {rev.changeNote && <p className="text-xs text-muted-foreground mt-1">{rev.changeNote}</p>}
-                  <p className="text-xs text-muted-foreground">by {rev.author.name}</p>
+                  {rev.changeNote && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {rev.changeNote}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    by {rev.author.name}
+                  </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No revisions yet</p>
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No revisions yet
+            </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRevisions(false)}>Close</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowRevisions(false)}
+            >
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
