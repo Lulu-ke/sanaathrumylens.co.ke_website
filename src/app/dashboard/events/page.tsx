@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   Plus,
@@ -50,6 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -72,19 +74,37 @@ interface EventItem {
   categories: { category: { id: string; name: string } }[]
 }
 
+interface EventsResponse {
+  events: EventItem[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 export default function EventsPage() {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("ALL")
   const [deleteEvent, setDeleteEvent] = useState<EventItem | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
-  const { data: eventsData, isLoading } = useQuery<{ events: EventItem[]; total: number }>({
-    queryKey: ["events", search, typeFilter],
+  // Pagination from URL
+  const currentPage = parseInt(searchParams.get("page") || "1")
+  const currentLimit = parseInt(searchParams.get("limit") || "10")
+
+  const { data: eventsData, isLoading } = useQuery<EventsResponse>({
+    queryKey: ["events", search, typeFilter, currentPage, currentLimit],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (search) params.set("search", search)
       if (typeFilter && typeFilter !== "ALL") params.set("eventType", typeFilter)
+      params.set("page", String(currentPage))
+      params.set("limit", String(currentLimit))
       const res = await fetch(`/api/events?${params}`)
       if (!res.ok) throw new Error("Failed to fetch events")
       return res.json()
@@ -104,6 +124,19 @@ export default function EventsPage() {
     onError: () => toast.error("Failed to delete event"),
   })
 
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
+    router.push(`?${params.toString()}`)
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("limit", String(size))
+    params.set("page", "1")
+    router.push(`?${params.toString()}`)
+  }
+
   const getEventTypeBadge = (type: string) => {
     const variants: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
       IN_PERSON: { label: "In Person", variant: "default" },
@@ -113,6 +146,8 @@ export default function EventsPage() {
     const info = variants[type] || { label: type, variant: "secondary" as const }
     return <Badge variant={info.variant}>{info.label}</Badge>
   }
+
+  const pagination = eventsData?.pagination
 
   return (
     <div className="space-y-6">
@@ -282,6 +317,18 @@ export default function EventsPage() {
             <p>No events found</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
       )}
 
       <AlertDialog open={!!deleteEvent} onOpenChange={(open) => !open && setDeleteEvent(null)}>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useSearchParams, useRouter } from "next/navigation"
 import {
   MessageSquare,
   CheckCircle2,
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 import { toast } from "sonner"
 
 interface Comment {
@@ -49,17 +51,35 @@ interface Comment {
   parentId: string | null
 }
 
+interface CommentsResponse {
+  comments: Comment[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 export default function CommentsPage() {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [replyComment, setReplyComment] = useState<Comment | null>(null)
   const [replyContent, setReplyContent] = useState("")
 
-  const { data: commentsData, isLoading } = useQuery<{ comments: Comment[]; total: number }>({
-    queryKey: ["comments", statusFilter],
+  // Pagination from URL
+  const currentPage = parseInt(searchParams.get("page") || "1")
+  const currentLimit = parseInt(searchParams.get("limit") || "20")
+
+  const { data: commentsData, isLoading } = useQuery<CommentsResponse>({
+    queryKey: ["comments", statusFilter, currentPage, currentLimit],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (statusFilter && statusFilter !== "ALL") params.set("status", statusFilter)
+      params.set("page", String(currentPage))
+      params.set("limit", String(currentLimit))
       const res = await fetch(`/api/comments?${params}`)
       if (!res.ok) throw new Error("Failed to fetch comments")
       return res.json()
@@ -114,6 +134,19 @@ export default function CommentsPage() {
     onError: () => toast.error("Failed to post reply"),
   })
 
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
+    router.push(`?${params.toString()}`)
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("limit", String(size))
+    params.set("page", "1")
+    router.push(`?${params.toString()}`)
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       PENDING: { label: "Pending", variant: "outline" },
@@ -126,6 +159,7 @@ export default function CommentsPage() {
   }
 
   const pendingCount = commentsData?.comments?.filter((c) => c.status === "PENDING").length || 0
+  const pagination = commentsData?.pagination
 
   return (
     <div className="space-y-6">
@@ -282,6 +316,18 @@ export default function CommentsPage() {
           </Card>
         )}
       </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
 
       {/* Reply Dialog */}
       <Dialog open={!!replyComment} onOpenChange={(open) => !open && setReplyComment(null)}>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   Plus,
@@ -49,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 import { toast } from "sonner"
 
 interface Post {
@@ -63,23 +65,42 @@ interface Post {
   categories: { category: { id: string; name: string; color: string | null } }[]
 }
 
+interface PostsResponse {
+  posts: Post[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 export default function PostsPage() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [deletePost, setDeletePost] = useState<Post | null>(null)
 
+  // Pagination from URL
+  const currentPage = parseInt(searchParams.get("page") || "1")
+  const currentLimit = parseInt(searchParams.get("limit") || "10")
+
   const role = (session?.user?.role as string) || "AUTHOR"
   const isAuthor = role === "AUTHOR"
 
-  const { data: postsData, isLoading } = useQuery<{ posts: Post[]; total: number }>({
-    queryKey: ["posts", search, statusFilter],
+  const { data: postsData, isLoading } = useQuery<PostsResponse>({
+    queryKey: ["posts", search, statusFilter, currentPage, currentLimit],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (search) params.set("search", search)
       if (statusFilter && statusFilter !== "ALL") params.set("status", statusFilter)
       if (isAuthor) params.set("authorId", session?.user?.id || "")
+      params.set("page", String(currentPage))
+      params.set("limit", String(currentLimit))
       const res = await fetch(`/api/posts?${params}`)
       if (!res.ok) throw new Error("Failed to fetch posts")
       return res.json()
@@ -102,6 +123,19 @@ export default function PostsPage() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
+    router.push(`?${params.toString()}`)
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("limit", String(size))
+    params.set("page", "1")
+    router.push(`?${params.toString()}`)
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       PUBLISHED: { label: "Published", variant: "default" },
@@ -115,6 +149,8 @@ export default function PostsPage() {
     const info = variants[status] || { label: status, variant: "secondary" as const }
     return <Badge variant={info.variant}>{info.label}</Badge>
   }
+
+  const pagination = postsData?.pagination
 
   return (
     <div className="space-y-6">
@@ -173,7 +209,7 @@ export default function PostsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <FileText className="size-5" />
-            {isAuthor ? "Your Posts" : "All Posts"} ({postsData?.total || 0})
+            {isAuthor ? "Your Posts" : "All Posts"} ({pagination?.total || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -275,6 +311,18 @@ export default function PostsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletePost} onOpenChange={(open) => !open && setDeletePost(null)}>

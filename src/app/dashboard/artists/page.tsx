@@ -60,6 +60,7 @@ interface ArtistItem {
   slug: string
   stageName: string | null
   image: string | null
+  coverImage: string | null
   artistType: string
   location: string | null
   country: string | null

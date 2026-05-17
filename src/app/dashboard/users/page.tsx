@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useSearchParams, useRouter } from "next/navigation"
 import {
   Plus,
   Search,
@@ -46,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 import { toast } from "sonner"
 
 interface User {
@@ -60,14 +62,30 @@ interface User {
   createdAt: string
 }
 
+interface UsersResponse {
+  users: User[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 export default function UsersPage() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("ALL")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
+
+  // Pagination from URL
+  const currentPage = parseInt(searchParams.get("page") || "1")
+  const currentLimit = parseInt(searchParams.get("limit") || "20")
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -92,12 +110,14 @@ export default function UsersPage() {
   const role = (session?.user?.role as string) || ""
   const canManage = role === "SUPER_ADMIN" || role === "ADMIN"
 
-  const { data: usersData, isLoading } = useQuery<{ users: User[]; total: number }>({
-    queryKey: ["users", search, roleFilter],
+  const { data: usersData, isLoading } = useQuery<UsersResponse>({
+    queryKey: ["users", search, roleFilter, currentPage, currentLimit],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (search) params.set("search", search)
       if (roleFilter && roleFilter !== "ALL") params.set("role", roleFilter)
+      params.set("page", String(currentPage))
+      params.set("limit", String(currentLimit))
       const res = await fetch(`/api/users?${params}`)
       if (!res.ok) throw new Error("Failed to fetch users")
       return res.json()
@@ -163,6 +183,19 @@ export default function UsersPage() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
+    router.push(`?${params.toString()}`)
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("limit", String(size))
+    params.set("page", "1")
+    router.push(`?${params.toString()}`)
+  }
+
   const getRoleBadgeColor = (userRole: string) => {
     const colors: Record<string, string> = {
       SUPER_ADMIN: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
@@ -186,6 +219,8 @@ export default function UsersPage() {
     })
     setEditingUser(user)
   }
+
+  const pagination = usersData?.pagination
 
   if (!canManage) {
     return (
@@ -245,7 +280,7 @@ export default function UsersPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Shield className="size-5" />
-            All Users ({usersData?.total || 0})
+            All Users ({pagination?.total || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -326,6 +361,18 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
 
       {/* Create User Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

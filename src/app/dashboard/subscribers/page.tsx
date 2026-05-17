@@ -1,13 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { UserPlus, Search, Download, Trash2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { toast } from 'sonner';
 
 interface Subscriber {
@@ -18,34 +36,67 @@ interface Subscriber {
   createdAt: string;
 }
 
+interface SubscribersResponse {
+  subscribers: Subscriber[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export default function SubscribersPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteSubscriber, setDeleteSubscriber] = useState<Subscriber | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['subscribers', statusFilter],
+  // Pagination from URL
+  const currentPage = parseInt(searchParams.get('page') || '1');
+  const currentLimit = parseInt(searchParams.get('limit') || '20');
+
+  const { data, isLoading } = useQuery<SubscribersResponse>({
+    queryKey: ['subscribers', statusFilter, currentPage, currentLimit],
     queryFn: async () => {
-      const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`/api/newsletter${params}`);
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      params.set('page', String(currentPage));
+      params.set('limit', String(currentLimit));
+      const res = await fetch(`/api/newsletter?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     },
   });
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this subscriber?')) return;
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const res = await fetch(`/api/newsletter/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Subscriber deleted');
-        queryClient.invalidateQueries({ queryKey: ['subscribers'] });
-      } else {
-        toast.error('Failed to delete');
-      }
-    } catch {
+      if (!res.ok) throw new Error('Failed to delete');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscribers'] });
+      setDeleteSubscriber(null);
+      toast.success('Subscriber deleted');
+    },
+    onError: () => {
       toast.error('Something went wrong');
-    }
+    },
+  });
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
+    router.push(`?${params.toString()}`);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('limit', String(size));
+    params.set('page', '1');
+    router.push(`?${params.toString()}`);
   };
 
   const handleExportCSV = () => {
@@ -79,6 +130,8 @@ export default function SubscribersPage() {
   };
 
   const allSubscribers = data?.subscribers || [];
+  const pagination = data?.pagination;
+
   const filteredSubscribers = allSubscribers.filter((s: Subscriber) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -88,6 +141,7 @@ export default function SubscribersPage() {
     );
   });
 
+  // Use pagination total for counts (approximation for all)
   const activeCount = allSubscribers.filter((s: Subscriber) => s.status === 'ACTIVE').length;
   const unsubscribedCount = allSubscribers.filter((s: Subscriber) => s.status === 'UNSUBSCRIBED').length;
 
@@ -111,7 +165,7 @@ export default function SubscribersPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{allSubscribers.length}</p>
+            <p className="text-2xl font-bold">{pagination?.total || 0}</p>
             <p className="text-xs text-muted-foreground">Total Subscribers</p>
           </CardContent>
         </Card>
@@ -200,7 +254,7 @@ export default function SubscribersPage() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => handleDelete(subscriber.id)}
+                  onClick={() => setDeleteSubscriber(subscriber)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -209,6 +263,39 @@ export default function SubscribersPage() {
           </div>
         </div>
       )}
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
+
+      {/* Delete Confirmation AlertDialog */}
+      <AlertDialog open={!!deleteSubscriber} onOpenChange={(open) => !open && setDeleteSubscriber(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Subscriber</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteSubscriber?.email}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteSubscriber && deleteMutation.mutate(deleteSubscriber.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
