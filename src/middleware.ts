@@ -297,9 +297,13 @@ export async function middleware(request: NextRequest) {
     // User is accessing /dashboard on a subdomain
     // Check authentication
     if (!sessionToken) {
-      const signInUrl = new URL("/auth/signin", request.url);
-      signInUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(signInUrl);
+      // Redirect to sign-in on the BASE domain (where the cookie is set)
+      // After login, the base domain middleware will redirect to this subdomain
+      const signInUrl = buildBaseDomainUrl("/auth/signin", request);
+      signInUrl.searchParams.set("callbackUrl", `https://${subdomain.subdomain}.${ROOT_DOMAIN}${pathname}`);
+      const response = NextResponse.redirect(signInUrl);
+      response.headers.set("X-Debug", "no-session-token");
+      return response;
     }
 
     // Check if the user's role can access this subdomain
@@ -311,12 +315,16 @@ export async function middleware(request: NextRequest) {
         // Redirect to their correct subdomain dashboard
         const redirectUrl = buildSubdomainUrl(correctSubdomain.subdomain, "/dashboard/redirect", request);
         redirectUrl.searchParams.set("attempted", subdomain.subdomain);
-        return NextResponse.redirect(redirectUrl);
+        const response = NextResponse.redirect(redirectUrl);
+        response.headers.set("X-Debug", `wrong-role:${userRole}-needs:${subdomain.role}`);
+        return response;
       } else {
         // READER or unknown role — redirect to base domain dashboard
         const redirectUrl = buildBaseDomainUrl("/dashboard/redirect", request);
         redirectUrl.searchParams.set("attempted", subdomain.subdomain);
-        return NextResponse.redirect(redirectUrl);
+        const response = NextResponse.redirect(redirectUrl);
+        response.headers.set("X-Debug", `no-subdomain-for-role:${userRole}`);
+        return response;
       }
     }
 
@@ -324,7 +332,9 @@ export async function middleware(request: NextRequest) {
     if (userRole === "READER") {
       const redirectUrl = buildBaseDomainUrl("/dashboard/redirect", request);
       redirectUrl.searchParams.set("attempted", subdomain.subdomain);
-      return NextResponse.redirect(redirectUrl);
+      const response = NextResponse.redirect(redirectUrl);
+      response.headers.set("X-Debug", "reader-on-subdomain");
+      return response;
     }
 
     // Role-based path restrictions within subdomain dashboard
