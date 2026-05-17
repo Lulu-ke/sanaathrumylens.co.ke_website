@@ -54,6 +54,21 @@ export function SignInForm() {
           setError("Invalid email or password")
         }
       } else {
+        // Fetch session to get the user's role and set the role cookie
+        try {
+          const sessionRes = await fetch("/api/auth/session");
+          const sessionData = await sessionRes.json();
+          const role = sessionData?.user?.role || "READER";
+          
+          // Set x-user-role cookie for subdomain middleware
+          // This is needed because Vercel Edge runtime can't decrypt NextAuth JWE tokens
+          if (role && role !== "READER") {
+            document.cookie = `x-user-role=${role}; path=/; domain=.sanaathrumylens.co.ke; max-age=86400; samesite=lax; secure`;
+          }
+        } catch {
+          // Cookie setting is best-effort
+        }
+        
         // Use full callback URL (includes subdomain origin) for proper redirect
         // Use window.location.href for a full page load so middleware runs
         window.location.href = fullCallbackUrl;
