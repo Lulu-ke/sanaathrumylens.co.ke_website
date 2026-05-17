@@ -17,6 +17,12 @@ export function SignInForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
 
+  // If we're on a subdomain (e.g., control.sanaathrumylens.co.ke),
+  // build the full URL for the callback so NextAuth redirects back to this subdomain
+  const fullCallbackUrl = typeof window !== "undefined" && callbackUrl.startsWith("/")
+    ? `${window.location.origin}${callbackUrl}`
+    : callbackUrl
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -48,8 +54,9 @@ export function SignInForm() {
           setError("Invalid email or password")
         }
       } else {
-        router.push(callbackUrl)
-        router.refresh()
+        // Use full callback URL (includes subdomain origin) for proper redirect
+        // Use window.location.href for a full page load so middleware runs
+        window.location.href = fullCallbackUrl;
       }
     } catch {
       setError("An error occurred. Please try again.")
@@ -77,8 +84,7 @@ export function SignInForm() {
         return
       }
 
-      router.push(callbackUrl)
-      router.refresh()
+      window.location.href = fullCallbackUrl;
     } catch {
       setError("Verification failed. Please try again.")
     } finally {
@@ -87,7 +93,7 @@ export function SignInForm() {
   }
 
   async function handleGoogleSignIn() {
-    await signIn("google", { callbackUrl })
+    await signIn("google", { callbackUrl: fullCallbackUrl })
   }
 
   if (requires2FA) {
