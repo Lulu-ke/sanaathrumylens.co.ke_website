@@ -15,10 +15,32 @@ export async function generateMetadata({ params }: TagPageProps) {
 
   if (!tag) return { title: 'Tag Not Found' };
 
+  const title = `${tag.name} — Sanaa Through My Lens`;
+  const description = `Stories tagged with "${tag.name}" on Sanaa Through My Lens`;
+
   return {
-    title: `${tag.name} — Sanaa Through My Lens`,
-    description: `Stories tagged with "${tag.name}" on Sanaa Through My Lens`,
+    title,
+    description,
+    alternates: {
+      canonical: `/tag/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
   };
+}
+
+export async function generateStaticParams() {
+  const tags = await db.tag.findMany({
+    select: { slug: true },
+  });
+  return tags.map((t) => ({ slug: t.slug }));
 }
 
 export default async function TagPage({ params }: TagPageProps) {

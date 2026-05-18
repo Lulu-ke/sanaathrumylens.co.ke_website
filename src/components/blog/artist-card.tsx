@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -42,11 +43,12 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         {/* Cover image */}
         <div className="relative h-28 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent overflow-hidden">
           {artist.coverImage ? (
-            <img
+            <Image
               src={artist.coverImage}
-              alt=""
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
+              alt={`${artist.name} cover`}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center">
@@ -67,13 +69,14 @@ export function ArtistCard({ artist }: ArtistCardProps) {
 
         {/* Profile photo overlapping */}
         <div className="relative px-4 -mt-8">
-          <div className="size-16 rounded-full border-4 border-card overflow-hidden bg-muted shadow-sm">
+          <div className="relative size-16 rounded-full border-4 border-card overflow-hidden bg-muted shadow-sm">
             {artist.image ? (
-              <img
+              <Image
                 src={artist.image}
                 alt={artist.name}
-                className="h-full w-full object-cover"
-                loading="lazy"
+                fill
+                className="object-cover"
+                sizes="64px"
               />
             ) : (
               <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-serif font-bold text-xl">

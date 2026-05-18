@@ -10,14 +10,31 @@ export async function generateMetadata({ params }: AuthorPageProps) {
   const { username } = await params;
   const user = await db.user.findUnique({
     where: { username },
-    select: { name: true, bio: true },
+    select: { name: true, bio: true, image: true },
   });
 
   if (!user) return { title: 'Author Not Found' };
 
+  const title = `${user.name} — Sanaa Through My Lens`;
+  const description = user.bio || `Articles by ${user.name} on Sanaa Through My Lens`;
+
   return {
-    title: `${user.name} — Sanaa Through My Lens`,
-    description: user.bio || `Articles by ${user.name}`,
+    title,
+    description,
+    alternates: {
+      canonical: `/author/${username}`,
+    },
+    openGraph: {
+      title,
+      description: user.bio || undefined,
+      images: user.image ? [user.image] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: user.bio || undefined,
+      images: user.image ? [user.image] : undefined,
+    },
   };
 }
 

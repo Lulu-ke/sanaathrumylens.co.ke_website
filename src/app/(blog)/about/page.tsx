@@ -5,6 +5,18 @@ import { Button } from '@/components/ui/button';
 export const metadata = {
   title: 'About — Sanaa Through My Lens',
   description: 'About Sanaa Through My Lens — an arts & culture opinion blog highlighting stories around the art scene in Kenya and East Africa.',
+  alternates: {
+    canonical: '/about',
+  },
+  openGraph: {
+    title: 'About — Sanaa Through My Lens',
+    description: 'An arts & culture opinion blog highlighting stories around the art scene in Kenya and East Africa.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'About — Sanaa Through My Lens',
+    description: 'An arts & culture opinion blog highlighting stories around the art scene in Kenya and East Africa.',
+  },
 };
 
 export default function AboutPage() {

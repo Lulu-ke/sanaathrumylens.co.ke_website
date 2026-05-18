@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, MapPin, Clock, Globe, Ticket, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ export function EventDetailClient({ event, relatedEvents }: EventDetailClientPro
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6 flex-wrap">
         <Link href="/" className="hover:text-primary transition-colors">Home</Link>
@@ -62,10 +63,14 @@ export function EventDetailClient({ event, relatedEvents }: EventDetailClientPro
       {/* Cover Image */}
       {event.coverImage && (
         <div className="rounded-xl overflow-hidden mb-8">
-          <img
+          <Image
             src={event.coverImage}
             alt={event.title}
+            width={1200}
+            height={675}
+            priority
             className="w-full aspect-[16/9] object-cover"
+            sizes="(max-width: 768px) 100vw, 896px"
           />
         </div>
       )}
@@ -197,6 +202,6 @@ export function EventDetailClient({ event, relatedEvents }: EventDetailClientPro
           </div>
         </section>
       )}
-    </div>
+    </article>
   );
 }

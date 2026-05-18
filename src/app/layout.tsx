@@ -19,6 +19,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://sanaathrumylens.co.ke'),
   title: {
     default: "Sanaa Through My Lens — Arts & Culture Blog",
     template: "%s | Sanaa Through My Lens",

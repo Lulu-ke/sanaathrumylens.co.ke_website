@@ -16,15 +16,34 @@ export async function generateMetadata({ params }: ArtistProfilePageProps) {
   if (!artist) return { title: 'Artist Not Found' };
 
   const displayName = artist.stageName || artist.name;
+  const description = artist.shortBio || `Profile of ${displayName} on Sanaa Through My Lens`;
+
   return {
     title: `${displayName} — Sanaa Through My Lens`,
-    description: artist.shortBio || `Profile of ${displayName} on Sanaa Through My Lens`,
+    description,
+    alternates: {
+      canonical: `/artist/${slug}`,
+    },
     openGraph: {
       title: `${displayName} — Sanaa Through My Lens`,
       description: artist.shortBio || undefined,
       images: artist.image ? [artist.image] : undefined,
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${displayName} — Sanaa Through My Lens`,
+      description: artist.shortBio || undefined,
+      images: artist.image ? [artist.image] : undefined,
+    },
   };
+}
+
+export async function generateStaticParams() {
+  const artists = await db.artist.findMany({
+    where: { isActive: true },
+    select: { slug: true },
+  });
+  return artists.map((a) => ({ slug: a.slug }));
 }
 
 export default async function ArtistProfilePage({ params }: ArtistProfilePageProps) {
@@ -102,6 +121,18 @@ export default async function ArtistProfilePage({ params }: ArtistProfilePagePro
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://sanaathrumylens.co.ke' },
+            { '@type': 'ListItem', position: 2, name: 'Artists', item: 'https://sanaathrumylens.co.ke/artists' },
+            { '@type': 'ListItem', position: 3, name: artist.stageName || artist.name, item: `https://sanaathrumylens.co.ke/artist/${artist.slug}` },
+          ],
+        }) }}
       />
       <ArtistProfileClient
         artist={JSON.parse(JSON.stringify(artist))}

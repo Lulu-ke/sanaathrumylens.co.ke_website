@@ -4,6 +4,18 @@ import { ArtistsDirectoryClient } from './artists-client';
 export const metadata = {
   title: 'Discover East African Artists — Sanaa Through My Lens',
   description: 'Explore musicians, writers, painters, filmmakers, and other creative voices from Kenya and East Africa.',
+  alternates: {
+    canonical: '/artists',
+  },
+  openGraph: {
+    title: 'Discover East African Artists — Sanaa Through My Lens',
+    description: 'Explore musicians, writers, painters, filmmakers, and other creative voices from Kenya and East Africa.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Discover East African Artists — Sanaa Through My Lens',
+    description: 'Explore musicians, writers, painters, filmmakers, and other creative voices from Kenya and East Africa.',
+  },
 };
 
 export default async function ArtistsDirectoryPage() {

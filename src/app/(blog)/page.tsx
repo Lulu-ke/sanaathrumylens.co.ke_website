@@ -72,14 +72,38 @@ export default async function HomePage() {
     slug: p.slug,
   }));
 
+  // Organization + WebSite structured data
+  const websiteLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Sanaa Through My Lens',
+    url: 'https://sanaathrumylens.co.ke',
+    description: 'An arts & culture opinion blog highlighting stories around the art scene in Kenya and East Africa.',
+    publisher: {
+      '@type': 'Organization',
+      name: 'Sanaa Through My Lens',
+      url: 'https://sanaathrumylens.co.ke',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://sanaathrumylens.co.ke/logo.svg',
+      },
+    },
+  };
+
   return (
-    <HomepageClient
-      heroPost={heroPost ? JSON.parse(JSON.stringify(heroPost)) : null}
-      gridPosts={JSON.parse(JSON.stringify(gridPosts))}
-      categories={JSON.parse(JSON.stringify(categories))}
-      events={JSON.parse(JSON.stringify(events))}
-      ads={JSON.parse(JSON.stringify(ads))}
-      trendingPosts={trendingPosts}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
+      />
+      <HomepageClient
+        heroPost={heroPost ? JSON.parse(JSON.stringify(heroPost)) : null}
+        gridPosts={JSON.parse(JSON.stringify(gridPosts))}
+        categories={JSON.parse(JSON.stringify(categories))}
+        events={JSON.parse(JSON.stringify(events))}
+        ads={JSON.parse(JSON.stringify(ads))}
+        trendingPosts={trendingPosts}
+      />
+    </>
   );
 }

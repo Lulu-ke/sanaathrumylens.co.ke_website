@@ -4,6 +4,18 @@ import { EventsPageClient } from './events-client';
 export const metadata = {
   title: 'Events — Sanaa Through My Lens',
   description: 'Art exhibitions, festivals, concerts, launches and cultural happenings in Kenya and East Africa',
+  alternates: {
+    canonical: '/events',
+  },
+  openGraph: {
+    title: 'Events — Sanaa Through My Lens',
+    description: 'Art exhibitions, festivals, concerts, launches and cultural happenings in Kenya and East Africa',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Events — Sanaa Through My Lens',
+    description: 'Art exhibitions, festivals, concerts, launches and cultural happenings in Kenya and East Africa',
+  },
 };
 
 export default async function EventsPage() {

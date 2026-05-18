@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   MapPin,
   Globe,
@@ -125,10 +126,12 @@ export function ArtistProfileClient({ artist }: ArtistProfileClientProps) {
       {/* Cover Image Banner */}
       <div className="relative h-48 sm:h-64 md:h-80 overflow-hidden">
         {artist.coverImage ? (
-          <img
+          <Image
             src={artist.coverImage}
-            alt=""
-            className="h-full w-full object-cover"
+            alt={`${artist.name} cover`}
+            fill
+            className="object-cover"
+            sizes="100vw"
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5" />
@@ -152,12 +155,14 @@ export function ArtistProfileClient({ artist }: ArtistProfileClientProps) {
         <div className="flex flex-col sm:flex-row gap-6 items-start">
           {/* Profile photo */}
           <div className="shrink-0">
-            <div className="size-32 sm:size-40 rounded-full border-4 border-background overflow-hidden bg-muted shadow-xl">
+            <div className="relative size-32 sm:size-40 rounded-full border-4 border-background overflow-hidden bg-muted shadow-xl">
               {artist.image ? (
-                <img
+                <Image
                   src={artist.image}
                   alt={artist.name}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="160px"
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-serif font-bold text-4xl">
@@ -331,7 +336,7 @@ export function ArtistProfileClient({ artist }: ArtistProfileClientProps) {
                   <Card className="overflow-hidden hover:shadow-md transition-shadow">
                     <div className="flex">
                       {e.event.coverImage ? (
-                        <img src={e.event.coverImage} alt="" className="w-24 sm:w-32 object-cover" />
+                        <Image src={e.event.coverImage} alt={`${e.event.title} event thumbnail`} width={128} height={128} className="w-24 sm:w-32 object-cover" />
                       ) : (
                         <div className="w-24 sm:w-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shrink-0">
                           <Calendar className="size-8 text-primary/30" />

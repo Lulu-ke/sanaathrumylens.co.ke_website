@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, MapPin, Ticket } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -49,11 +50,12 @@ export function EventCard({ event }: EventCardProps) {
       <article className="relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
         {/* Image */}
         <div className="relative aspect-[16/9] overflow-hidden">
-          <img
+          <Image
             src={imageSrc}
             alt={event.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
           {primaryCategory && (
             <Badge

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, Clock, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { BookmarkButton } from '@/components/blog/bookmark-button';
@@ -48,11 +49,12 @@ export function PostCard({ post }: PostCardProps) {
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
       {/* Image */}
       <Link href={`/post/${post.slug}`} className="relative aspect-[16/10] overflow-hidden">
-        <img
+        <Image
           src={imageSrc}
           alt={post.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
         {/* Category badge */}
         {primaryCategory && (

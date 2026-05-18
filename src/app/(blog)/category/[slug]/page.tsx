@@ -15,10 +15,33 @@ export async function generateMetadata({ params }: CategoryPageProps) {
 
   if (!category) return { title: 'Category Not Found' };
 
+  const title = `${category.name} — Sanaa Through My Lens`;
+  const description = category.description || `Browse ${category.name} stories on Sanaa Through My Lens`;
+
   return {
-    title: `${category.name} — Sanaa Through My Lens`,
-    description: category.description || undefined,
+    title,
+    description,
+    alternates: {
+      canonical: `/category/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
   };
+}
+
+export async function generateStaticParams() {
+  const categories = await db.category.findMany({
+    where: { isActive: true },
+    select: { slug: true },
+  });
+  return categories.map((c) => ({ slug: c.slug }));
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {

@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: EventDetailPageProps) {
   const { slug } = await params;
   const event = await db.event.findUnique({
     where: { slug },
-    select: { title: true, excerpt: true },
+    select: { title: true, excerpt: true, coverImage: true },
   });
 
   if (!event) return { title: 'Event Not Found' };
@@ -18,7 +18,30 @@ export async function generateMetadata({ params }: EventDetailPageProps) {
   return {
     title: `${event.title} — Sanaa Through My Lens`,
     description: event.excerpt || undefined,
+    alternates: {
+      canonical: `/events/${slug}`,
+    },
+    openGraph: {
+      title: event.title,
+      description: event.excerpt || undefined,
+      images: event.coverImage ? [event.coverImage] : undefined,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: event.title,
+      description: event.excerpt || undefined,
+      images: event.coverImage ? [event.coverImage] : undefined,
+    },
   };
+}
+
+export async function generateStaticParams() {
+  const events = await db.event.findMany({
+    where: { isActive: true },
+    select: { slug: true },
+  });
+  return events.map((e) => ({ slug: e.slug }));
 }
 
 export default async function EventDetailPage({ params }: EventDetailPageProps) {
@@ -87,6 +110,18 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://sanaathrumylens.co.ke' },
+            { '@type': 'ListItem', position: 2, name: 'Events', item: 'https://sanaathrumylens.co.ke/events' },
+            { '@type': 'ListItem', position: 3, name: event.title, item: `https://sanaathrumylens.co.ke/events/${event.slug}` },
+          ],
+        }) }}
       />
       <EventDetailClient
         event={JSON.parse(JSON.stringify(event))}

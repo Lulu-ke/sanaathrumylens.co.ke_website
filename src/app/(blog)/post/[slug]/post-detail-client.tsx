@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, Clock, User, ChevronRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -151,10 +152,14 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
       {/* Featured Image */}
       {post.featuredImage && (
         <div className="rounded-xl overflow-hidden mb-8">
-          <img
+          <Image
             src={post.featuredImage}
             alt={post.title}
+            width={1200}
+            height={675}
+            priority
             className="w-full aspect-[16/9] object-cover"
+            sizes="(max-width: 768px) 100vw, 896px"
           />
         </div>
       )}

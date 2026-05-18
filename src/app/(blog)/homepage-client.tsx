@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, Clock, User, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -80,10 +81,13 @@ export function HomepageClient({
             {heroPost ? (
               <Link href={`/post/${heroPost.slug}`} className="group block">
                 <div className="relative aspect-[16/9] lg:aspect-[16/10] rounded-xl overflow-hidden">
-                  <img
+                  <Image
                     src={heroPost.featuredImage || '/placeholder-hero.svg'}
                     alt={heroPost.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    fill
+                    priority
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="(max-width: 1024px) 100vw, 66vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8">
@@ -178,9 +182,11 @@ export function HomepageClient({
             {ads.length > 0 && (
               <Card className="overflow-hidden">
                 <a href={ads[0].linkUrl} target="_blank" rel="noopener noreferrer">
-                  <img
+                  <Image
                     src={ads[0].imageUrl}
                     alt={ads[0].title}
+                    width={400}
+                    height={200}
                     className="w-full aspect-[2/1] object-cover"
                   />
                   <CardContent className="p-3">
