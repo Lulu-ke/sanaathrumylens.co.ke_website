@@ -282,3 +282,37 @@ Implemented the ability for users (READER+) to group bookmarks into named readin
 - `bun run db:push` — database in sync
 - `npx eslint` — no errors in modified/created files
 - `npx next build` — compiled successfully with `/dashboard/reading-lists` and `/list/[slug]` routes listed
+---
+Task ID: 1
+Agent: Main Agent
+Task: Full website testing and bug fixing for sanaathrumylens.co.ke
+
+Work Log:
+- Tested homepage - loads correctly with featured posts, navigation, newsletter, footer
+- Found CRITICAL bug: All article pages returning 404 because `status` field was not selected in DB query
+- Fixed post/[slug]/page.tsx by adding `status: true` and `isFeatured: true` to the select clause
+- Tested all 7 category pages - all working
+- Tested tag pages, author pages - all working
+- Tested search functionality - working with results
+- Tested About, Contact, Community, Newsletter, Advertise, Events, Artists pages - all working
+- Tested Sign In and Sign Up pages - both working
+- Tested Super Admin dashboard at control.sanaathrumylens.co.ke - working with full navigation
+- Tested Editor dashboard at editor.sanaathrumylens.co.ke - working with proper redirect
+- Found bug: Settings page crashing due to API response format mismatch
+- Fixed settings page to parse {raw: [...]} format from API
+- Found bug: Newsletter subscribe API returning 405 - no POST handler existed
+- Added POST handler to /api/newsletter/route.ts with token generation
+- Created /api/newsletter/subscribe/route.ts as alternative endpoint
+- Found bug: Contact form API blocked by middleware - required auth for public form
+- Added /api/contact to publicPostApiRoutes in middleware.ts
+- Tested dark/light theme toggle - working
+- Tested Vercel deployment - confirmed GitHub push triggers deployment
+- All fixes committed and pushed (2 commits: 7924dcd and c2cb6f6)
+
+Stage Summary:
+- Fixed 4 critical bugs across the site
+- All public pages now working correctly
+- All dashboard pages functional
+- Vercel auto-deployment confirmed working
+- Newsletter subscription API working
+- Contact form API working
