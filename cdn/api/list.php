@@ -10,7 +10,9 @@
  *   { success: true, data: { files: [...], total: N, page: 1, limit: 20 } }
  */
 
-require_once __DIR__ . '/../config.php';
+// Load config from CDN root using absolute path
+$cdnRoot = '/home/cgqcqobh/public_html/cdn.sanaathrumylens.co.ke';
+require_once $cdnRoot . '/config.php';
 
 handleCORS();
 
