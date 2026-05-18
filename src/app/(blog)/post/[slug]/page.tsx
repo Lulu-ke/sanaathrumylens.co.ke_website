@@ -2,6 +2,9 @@ import { db } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import { PostDetailClient } from './post-detail-client';
 
+// Revalidate every 60 seconds so new images/edits show up without a full redeploy
+export const revalidate = 60;
+
 interface PostPageProps {
   params: Promise<{ slug: string }>;
 }

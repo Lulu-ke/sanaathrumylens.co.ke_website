@@ -1,3 +1,6 @@
+// Revalidate every 60 seconds for ISR
+export const revalidate = 60;
+
 import { db } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import { ListDetailClient } from './list-detail-client';

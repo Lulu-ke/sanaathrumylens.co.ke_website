@@ -1,6 +1,9 @@
 import { db } from '@/lib/db';
 import { HomepageClient } from './homepage-client';
 
+// Revalidate every 60 seconds so new posts/images show up without a full redeploy
+export const revalidate = 60;
+
 export default async function HomePage() {
   // Fetch all data server-side
   const [
