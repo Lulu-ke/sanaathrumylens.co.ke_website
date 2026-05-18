@@ -1,0 +1,95 @@
+# CDN .htaccess for cdn.sanaathrumylens.co.ke
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ============================================
+# SECURITY HEADERS
+# ============================================
+
+# Prevent MIME type sniffing
+Header set X-Content-Type-Options "nosniff"
+
+# Prevent clickjacking — only allow from our domains
+Header set X-Frame-Options "ALLOW-FROM https://sanaathrumylens.co.ke"
+
+# XSS protection
+Header set X-XSS-Protection "1; mode=block"
+
+# Referrer policy
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+# ============================================
+# CACHING — Aggressive for CDN
+# ============================================
+
+# Cache images for 30 days
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/avif "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 7 days"
+</IfModule>
+
+# Cache-Control headers
+<IfModule mod_headers.c>
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|avif)$">
+        Header set Cache-Control "public, max-age=2592000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(svg)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>
+
+# ============================================
+# PROTECT SENSITIVE FILES
+# ============================================
+
+# Block access to config.php
+<Files "config.php">
+    Require all denied
+</Files>
+
+# Block access to .htaccess
+<Files ".htaccess">
+    Require all denied
+</Files>
+
+# Block access to hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# ============================================
+# DIRECTORY LISTING
+# ============================================
+
+# Disable directory listing
+Options -Indexes
+
+# ============================================
+# API ROUTES (optional — if you want clean URLs)
+# ============================================
+
+# Rewrite /api/upload to /api/upload.php
+RewriteRule ^api/upload$ api/upload.php [L,QSA]
+RewriteRule ^api/delete$ api/delete.php [L,QSA]
+RewriteRule ^api/list$ api/list.php [L,QSA]
+
+# ============================================
+# CORS for image serving (public read access)
+# ============================================
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|avif|svg)$">
+        Header set Access-Control-Allow-Origin "https://sanaathrumylens.co.ke"
+        Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+    </FilesMatch>
+</IfModule>

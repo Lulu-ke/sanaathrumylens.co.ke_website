@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
-import { z } from "zod";
+import { uploadToCDN, isCDNUrl } from "@/lib/cdn";
 
 // GET: List media (paginated)
 export async function GET(request: NextRequest) {
@@ -50,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Upload image (save to /public/uploads/, create Media record)
+// POST: Upload image to CDN (cdn.sanaathrumylens.co.ke)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -65,16 +63,17 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const altText = formData.get("altText") as string | null;
+    const folder = (formData.get("folder") as string) || "misc";
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/avif"];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG" },
+        { error: "Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG, AVIF" },
         { status: 400 }
       );
     }
@@ -87,31 +86,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure upload directory exists
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    if (!existsSync(uploadDir)) {
-      mkdirSync(uploadDir, { recursive: true });
-    }
+    // Upload to CDN
+    const cdnResult = await uploadToCDN(file, {
+      folder: folder as 'posts' | 'artists' | 'events' | 'profiles' | 'ads' | 'misc',
+    });
 
-    // Generate unique filename
-    const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const filepath = join(uploadDir, filename);
-
-    // Save file
-    const bytes = await file.arrayBuffer();
-    writeFileSync(filepath, Buffer.from(bytes));
-
-    const url = `/uploads/${filename}`;
-
-    // Create media record
+    // Create media record in database with CDN URL
     const media = await db.media.create({
       data: {
-        filename,
-        originalName: file.name,
-        mimeType: file.type,
-        size: file.size,
-        url,
+        filename: cdnResult.filename,
+        originalName: cdnResult.originalName,
+        mimeType: cdnResult.mimeType,
+        size: cdnResult.size,
+        url: cdnResult.url,
         altText,
         uploadedBy: session.user.id,
       },
@@ -121,7 +108,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Upload media error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     );
   }

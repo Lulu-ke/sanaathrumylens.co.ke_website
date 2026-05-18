@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
+import { deleteFromCDN, extractCDNPath, isCDNUrl } from "@/lib/cdn";
 import { unlinkSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -29,15 +30,25 @@ export async function DELETE(
       return NextResponse.json({ error: "Media not found" }, { status: 404 });
     }
 
-    // Delete the physical file from public/uploads/
-    if (media.url && media.url.startsWith("/uploads/")) {
+    // Delete from CDN if it's a CDN URL
+    if (isCDNUrl(media.url)) {
+      const cdnPath = extractCDNPath(media.url);
+      if (cdnPath) {
+        try {
+          await deleteFromCDN(cdnPath);
+        } catch (cdnError) {
+          console.error("Failed to delete from CDN:", cdnError);
+          // Continue with DB deletion even if CDN deletion fails
+        }
+      }
+    } else if (media.url && media.url.startsWith("/uploads/")) {
+      // Legacy: Delete from local filesystem (for old uploads)
       const filepath = join(process.cwd(), "public", media.url);
       if (existsSync(filepath)) {
         try {
           unlinkSync(filepath);
         } catch (fileError) {
           console.error("Failed to delete physical file:", fileError);
-          // Continue with DB deletion even if file deletion fails
         }
       }
     }
