@@ -44,6 +44,7 @@ export function EventCard({ event }: EventCardProps) {
   });
 
   const imageSrc = event.coverImage || '/placeholder-event.svg';
+  const isPast = startDate < new Date();
 
   return (
     <Link href={`/events/${event.slug}`} className="group">
@@ -78,6 +79,13 @@ export function EventCard({ event }: EventCardProps) {
               {event.price}
             </Badge>
           ) : null}
+          {isPast && (
+            <div className="absolute inset-0 bg-black/30 flex items-end justify-start p-3 z-[5]">
+              <Badge variant="secondary" className="bg-black/60 text-white border-none text-xs">
+                Past Event
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -97,10 +105,10 @@ export function EventCard({ event }: EventCardProps) {
               <Calendar className="h-3.5 w-3.5 shrink-0" />
               {formattedDate} · {formattedTime}
             </span>
-            {event.venue && (
+            {(event.venue || event.city) && (
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                {event.venue}{event.city ? `, ${event.city}` : ''}
+                {[event.venue, event.city].filter((v, i, arr) => v && (i === 0 || !arr[0]?.toLowerCase().includes(v.toLowerCase()))).join(', ')}
               </span>
             )}
             {!event.isFree && event.price && (

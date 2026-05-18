@@ -39,7 +39,7 @@ export default async function HomePage() {
         _count: { select: { comments: true, bookmarks: true } },
       },
       orderBy: { publishedAt: 'desc' },
-      take: 12,
+      take: 20,
     }),
     // Categories
     db.category.findMany({

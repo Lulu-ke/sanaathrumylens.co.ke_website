@@ -129,7 +129,7 @@ export function EventDetailClient({ event, relatedEvents }: EventDetailClientPro
               <div>
                 <p className="font-medium">{event.venue}</p>
                 <p className="text-sm text-muted-foreground">
-                  {[event.location, event.city, event.country].filter(Boolean).join(', ')}
+                  {[event.location, event.city, event.country].filter((v, i, arr) => v && (i === 0 || !arr.slice(0, i).some(prev => prev?.toLowerCase().includes(v.toLowerCase())))).join(', ')}
                 </p>
               </div>
             </div>
@@ -185,7 +185,7 @@ export function EventDetailClient({ event, relatedEvents }: EventDetailClientPro
           <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
           <p className="font-medium">{event.venue}</p>
           <p className="text-sm text-muted-foreground">
-            {[event.location, event.city, event.country].filter(Boolean).join(', ')}
+            {[event.location, event.city, event.country].filter((v, i, arr) => v && (i === 0 || !arr.slice(0, i).some(prev => prev?.toLowerCase().includes(v.toLowerCase())))).join(', ')}
           </p>
           <p className="text-xs text-muted-foreground mt-2">Map view coming soon</p>
         </div>

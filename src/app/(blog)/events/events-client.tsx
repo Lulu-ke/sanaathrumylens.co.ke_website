@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Grid3X3, List, SlidersHorizontal } from 'lucide-react';
+import { ChevronRight, Grid3X3, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EventCard } from '@/components/blog/event-card';
@@ -20,11 +20,34 @@ export function EventsPageClient({ events, featuredEvents, categories }: EventsP
 
   const cities = [...new Set(events.map((e) => e.city).filter(Boolean))] as string[];
 
-  const filteredEvents = events.filter((event) => {
+  // Only show categories that have events assigned to them
+  const eventCategories = categories.filter((cat) =>
+    events.some((e) => e.categories.some((c) => c.category.id === cat.id))
+  );
+
+  // Remove featured events from the main grid to avoid duplicates
+  const featuredIds = new Set(featuredEvents.map((e) => e.id));
+  const gridEvents = events.filter((e) => !featuredIds.has(e.id));
+
+  const filteredEvents = gridEvents.filter((event) => {
     if (selectedCategory && !event.categories.some((c) => c.category.slug === selectedCategory)) return false;
     if (selectedCity && event.city !== selectedCity) return false;
     return true;
   });
+
+  // Also filter featured events when a filter is active
+  const filteredFeatured = (selectedCategory || selectedCity)
+    ? featuredEvents.filter((event) => {
+        if (selectedCategory && !event.categories.some((c) => c.category.slug === selectedCategory)) return false;
+        if (selectedCity && event.city !== selectedCity) return false;
+        return true;
+      })
+    : featuredEvents;
+
+  // Split filtered events into upcoming and past
+  const now = new Date();
+  const upcomingFiltered = filteredEvents.filter((e) => new Date(e.startDate) >= now);
+  const pastFiltered = filteredEvents.filter((e) => new Date(e.startDate) < now);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -44,11 +67,11 @@ export function EventsPageClient({ events, featuredEvents, categories }: EventsP
       </div>
 
       {/* Featured Events */}
-      {featuredEvents.length > 0 && !selectedCategory && !selectedCity && (
+      {filteredFeatured.length > 0 && (
         <section className="mb-10">
           <h2 className="font-serif text-xl font-bold mb-4">Featured Events</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredEvents.map((event) => (
+            {filteredFeatured.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>
@@ -68,7 +91,7 @@ export function EventsPageClient({ events, featuredEvents, categories }: EventsP
           >
             All Categories
           </button>
-          {categories.map((cat) => (
+          {eventCategories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.slug === selectedCategory ? null : cat.slug)}
@@ -120,44 +143,49 @@ export function EventsPageClient({ events, featuredEvents, categories }: EventsP
 
       {/* Events Grid/List */}
       {filteredEvents.length > 0 ? (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredEvents.map((event) => (
-              <Link key={event.id} href={`/events/${event.slug}`} className="group">
-                <div className="flex gap-4 p-4 border rounded-lg hover:bg-accent/30 transition-all">
-                  <div className="flex flex-col items-center justify-center bg-primary/10 rounded-md p-3 min-w-[60px]">
-                    <span className="text-xs font-bold text-primary uppercase">
-                      {new Date(event.startDate).toLocaleDateString('en-KE', { month: 'short' })}
-                    </span>
-                    <span className="text-xl font-bold text-primary leading-none">
-                      {new Date(event.startDate).getDate()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-serif text-lg font-bold group-hover:text-primary transition-colors">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {event.venue && `${event.venue}, `}{event.city}
-                    </p>
-                    <div className="flex gap-2 mt-1">
-                      {event.isFree && <Badge className="bg-emerald-600 text-white border-none text-xs">Free</Badge>}
-                      {event.categories[0]?.category && (
-                        <Badge variant="outline" className="text-xs">{event.categories[0].category.name}</Badge>
-                      )}
-                    </div>
-                  </div>
+        <>
+          {/* Upcoming Events */}
+          {upcomingFiltered.length > 0 && (
+            <section className="mb-8">
+              {pastFiltered.length > 0 && (
+                <h2 className="font-serif text-xl font-bold mb-4">Upcoming Events</h2>
+              )}
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {upcomingFiltered.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
                 </div>
-              </Link>
-            ))}
-          </div>
-        )
+              ) : (
+                <div className="space-y-4">
+                  {upcomingFiltered.map((event) => (
+                    <EventListRow key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Past Events */}
+          {pastFiltered.length > 0 && (
+            <section>
+              <h2 className="font-serif text-xl font-bold mb-4 text-muted-foreground">Past Events</h2>
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {pastFiltered.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pastFiltered.map((event) => (
+                    <EventListRow key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </>
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">No events found</p>
@@ -176,5 +204,37 @@ export function EventsPageClient({ events, featuredEvents, categories }: EventsP
         </div>
       )}
     </div>
+  );
+}
+
+// Extracted list row component
+function EventListRow({ event }: { event: Parameters<typeof EventCard>[0]['event'] }) {
+  return (
+    <Link href={`/events/${event.slug}`} className="group">
+      <div className="flex gap-4 p-4 border rounded-lg hover:bg-accent/30 transition-all">
+        <div className="flex flex-col items-center justify-center bg-primary/10 rounded-md p-3 min-w-[60px]">
+          <span className="text-xs font-bold text-primary uppercase">
+            {new Date(event.startDate).toLocaleDateString('en-KE', { month: 'short' })}
+          </span>
+          <span className="text-xl font-bold text-primary leading-none">
+            {new Date(event.startDate).getDate()}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-serif text-lg font-bold group-hover:text-primary transition-colors">
+            {event.title}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {[event.venue, event.city].filter((v, i, arr) => v && (i === 0 || !arr[0]?.toLowerCase().includes(v.toLowerCase()))).join(', ')}
+          </p>
+          <div className="flex gap-2 mt-1">
+            {event.isFree && <Badge className="bg-emerald-600 text-white border-none text-xs">Free</Badge>}
+            {event.categories[0]?.category && (
+              <Badge variant="outline" className="text-xs">{event.categories[0].category.name}</Badge>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }

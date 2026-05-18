@@ -36,11 +36,16 @@ export default async function EventsPage() {
     }),
   ]);
 
-  const featuredEvents = events.filter((e) => e.isFeatured);
+  const now = new Date();
+  const upcomingEvents = events.filter((e) => new Date(e.startDate) >= now);
+  const pastEvents = events.filter((e) => new Date(e.startDate) < now);
+  // Show upcoming first, then past
+  const sortedEvents = [...upcomingEvents, ...pastEvents];
+  const featuredEvents = upcomingEvents.filter((e) => e.isFeatured);
 
   return (
     <EventsPageClient
-      events={JSON.parse(JSON.stringify(events))}
+      events={JSON.parse(JSON.stringify(sortedEvents))}
       featuredEvents={JSON.parse(JSON.stringify(featuredEvents))}
       categories={JSON.parse(JSON.stringify(categories))}
     />

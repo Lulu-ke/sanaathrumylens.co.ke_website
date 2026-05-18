@@ -253,7 +253,7 @@ export function HomepageClient({
                               {event.title}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {event.venue && `${event.venue}, `}{event.city}
+                              {[event.venue, event.city].filter((v, i, arr) => v && (i === 0 || !arr[0]?.toLowerCase().includes(v.toLowerCase()))).join(', ')}
                             </p>
                             {cat && (
                               <Badge
