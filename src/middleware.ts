@@ -170,10 +170,16 @@ function getSubdomainForRole(role: string): SubdomainConfig | null {
 
 /**
  * Check if a user with the given role can access a subdomain.
+ * Strict matching: each role can only access their own subdomain.
+ * SUPER_ADMIN and ADMIN can access any subdomain (management oversight).
  */
 function canAccessSubdomain(userRole: string, subdomain: SubdomainConfig): boolean {
-  const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
-  return userLevel >= subdomain.minRoleLevel;
+  // SUPER_ADMIN and ADMIN can access any subdomain for management oversight
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
+    return true;
+  }
+  // Other roles must match their subdomain exactly
+  return userRole === subdomain.role;
 }
 
 /**
@@ -260,13 +266,13 @@ export async function middleware(request: NextRequest) {
   const { sessionToken, role: userRole, noSession } = await getUserRole(request);
 
   // If there's no session but a stale x-user-role cookie exists, clear it
-  const shouldClearStaleCookie = noSession && request.cookies.get("x-user-role")?.value;
+  const shouldClearStaleCookie = !!(noSession && request.cookies.get("x-user-role")?.value);
 
   // Whenever we have a session token and a known non-READER role,
   // set the x-user-role cookie so subdomain middleware can read it.
   // This works around the Edge runtime limitation where getToken()
   // can't decrypt JWE tokens because NEXTAUTH_SECRET is unavailable.
-  const shouldSetRoleCookie = sessionToken && userRole !== "READER" && !request.cookies.get("x-user-role")?.value;
+  const shouldSetRoleCookie = !!(sessionToken && userRole !== "READER" && !request.cookies.get("x-user-role")?.value);
 
   // ============================================
   // Subdomain-specific routing

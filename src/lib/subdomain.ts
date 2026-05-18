@@ -116,11 +116,17 @@ export function getSubdomainUrl(subdomain: string, basePath: string = "/dashboar
 }
 
 /**
- * Check if a user with the given role can access a subdomain
+ * Check if a user with the given role can access a subdomain.
+ * Strict matching: each role can only access their own subdomain.
+ * SUPER_ADMIN and ADMIN can access any subdomain (management oversight).
  */
 export function canAccessSubdomain(userRole: string, subdomain: SubdomainConfig): boolean {
-  const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
-  return userLevel >= subdomain.minRoleLevel;
+  // SUPER_ADMIN and ADMIN can access any subdomain for management oversight
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
+    return true;
+  }
+  // Other roles must match their subdomain exactly
+  return userRole === subdomain.role;
 }
 
 /**

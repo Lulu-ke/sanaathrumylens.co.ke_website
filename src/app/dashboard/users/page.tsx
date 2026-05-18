@@ -397,7 +397,7 @@ function UsersContent() {
               </Table>
               </div>
             </>
-          )
+          )}
         </CardContent>
       </Card>
 

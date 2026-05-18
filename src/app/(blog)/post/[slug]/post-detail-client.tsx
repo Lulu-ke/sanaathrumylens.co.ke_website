@@ -1,13 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, Clock, User, ChevronRight, Eye } from 'lucide-react';
+import { Calendar, Clock, ChevronRight, Eye, MoreHorizontal, Bookmark, ListPlus, Flag, Share2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { ShareButtons } from '@/components/blog/share-buttons';
 import { BookmarkButton } from '@/components/blog/bookmark-button';
 import { SaveToListButton } from '@/components/blog/save-to-list-button';
@@ -75,10 +83,10 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
 
       {/* Header */}
       <header className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
           {primaryCategory && (
             <Badge
-              className="text-sm"
+              className="text-xs sm:text-sm"
               style={{
                 backgroundColor: primaryCategory.color || undefined,
                 color: '#fff',
@@ -90,14 +98,14 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
           )}
           {post.isCommunityVoice && (
             <Badge
-              className="text-sm bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25"
+              className="text-xs sm:text-sm bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25"
             >
               Community Voice
             </Badge>
           )}
           {post.isSponsored && (
             <Badge
-              className="text-sm bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/25"
+              className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/25"
             >
               Sponsored
             </Badge>
@@ -112,8 +120,9 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
           </p>
         )}
 
-        {/* Author + Meta */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6">
+        {/* Author + Meta + Actions */}
+        <div className="flex flex-col gap-4 mt-6">
+          {/* Author row */}
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={post.author.image || undefined} />
@@ -121,14 +130,14 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
                 {post.author.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="min-w-0">
               <Link
                 href={`/author/${post.author.username}`}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 {post.author.name}
               </Link>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                 {formattedDate && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -146,27 +155,37 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Action buttons — mobile-first, no overflow */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            {/* Primary actions: always visible */}
             <BookmarkButton
               postId={post.id}
               initialBookmarked={post.isBookmarked}
               variant="outline"
               size="sm"
-              showLabel
+              showLabel={false}
             />
-            <SaveToListButton
-              postId={post.id}
-              variant="outline"
-              size="sm"
-              showLabel
-            />
-            <FlagCommentButton
-              commentId={post.id}
-              contentType="POST"
-              variant="outline"
-              size="sm"
-            />
-            <ShareButtons title={post.title} slug={post.slug} />
+            <ShareButtons title={post.title} slug={post.slug} compact />
+
+            {/* Secondary actions: dropdown on mobile, inline on desktop */}
+            <div className="sm:hidden">
+              <MobileMoreActions postId={post.id} />
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              <SaveToListButton
+                postId={post.id}
+                variant="outline"
+                size="sm"
+                showLabel
+              />
+              <FlagCommentButton
+                commentId={post.id}
+                contentType="POST"
+                variant="outline"
+                size="sm"
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -216,29 +235,58 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
         </div>
       )}
 
-      {/* Share + Bookmark at bottom */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t">
-        <ShareButtons title={post.title} slug={post.slug} />
-        <div className="flex items-center gap-2">
-          <BookmarkButton
-            postId={post.id}
-            initialBookmarked={post.isBookmarked}
-            variant="outline"
-            size="sm"
-            showLabel
-          />
-          <SaveToListButton
-            postId={post.id}
-            variant="outline"
-            size="sm"
-            showLabel
-          />
-          <FlagCommentButton
-            commentId={post.id}
-            contentType="POST"
-            variant="outline"
-            size="sm"
-          />
+      {/* Bottom action bar — mobile-friendly */}
+      <div className="mt-8 pt-6 border-t">
+        {/* Mobile layout: stacked */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          <ShareButtons title={post.title} slug={post.slug} />
+          <div className="flex items-center gap-2">
+            <BookmarkButton
+              postId={post.id}
+              initialBookmarked={post.isBookmarked}
+              variant="outline"
+              size="sm"
+              showLabel={false}
+            />
+            <SaveToListButton
+              postId={post.id}
+              variant="outline"
+              size="sm"
+              showLabel={false}
+            />
+            <FlagCommentButton
+              commentId={post.id}
+              contentType="POST"
+              variant="outline"
+              size="sm"
+              showLabel={false}
+            />
+          </div>
+        </div>
+        {/* Desktop layout: side by side */}
+        <div className="hidden sm:flex items-center justify-between">
+          <ShareButtons title={post.title} slug={post.slug} />
+          <div className="flex items-center gap-2">
+            <BookmarkButton
+              postId={post.id}
+              initialBookmarked={post.isBookmarked}
+              variant="outline"
+              size="sm"
+              showLabel
+            />
+            <SaveToListButton
+              postId={post.id}
+              variant="outline"
+              size="sm"
+              showLabel
+            />
+            <FlagCommentButton
+              commentId={post.id}
+              contentType="POST"
+              variant="outline"
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -292,5 +340,48 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
       {/* Footer Ad */}
       <AdSlot placement="FOOTER" />
     </article>
+  );
+}
+
+/**
+ * Mobile-only "More actions" dropdown for secondary post actions
+ * (Save to List, Report Post). Keeps the header action bar compact.
+ */
+function MobileMoreActions({ postId }: { postId: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">More actions</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <span className="w-full">
+            <SaveToListButton
+              postId={postId}
+              variant="ghost"
+              size="sm"
+              showLabel
+            />
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <span className="w-full">
+            <FlagCommentButton
+              commentId={postId}
+              contentType="POST"
+              variant="ghost"
+              size="sm"
+            />
+          </span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

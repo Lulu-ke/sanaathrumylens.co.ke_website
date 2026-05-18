@@ -28,7 +28,7 @@ interface FlagCommentButtonProps {
   commentId: string;
   contentType?: 'COMMENT' | 'POST';
   variant?: 'ghost' | 'outline';
-  size?: 'sm' | 'default';
+  size?: 'sm' | 'default' | 'icon';
   showLabel?: boolean;
 }
 
@@ -108,7 +108,7 @@ export function FlagCommentButton({
           className={contentType === 'POST' ? 'text-muted-foreground hover:text-amber-600' : 'h-6 px-2 text-xs text-muted-foreground hover:text-amber-600'}
         >
           <Flag className={contentType === 'POST' ? 'h-4 w-4 mr-1.5' : 'h-3 w-3 mr-1'} />
-          {showLabel && label}
+          {showLabel && <span>{label}</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

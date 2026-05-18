@@ -8,9 +8,11 @@ interface ShareButtonsProps {
   title: string;
   slug: string;
   className?: string;
+  /** Compact mode: smaller buttons, no "Share:" label */
+  compact?: boolean;
 }
 
-export function ShareButtons({ title, slug, className = '' }: ShareButtonsProps) {
+export function ShareButtons({ title, slug, className = '', compact = false }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
   const url = typeof window !== 'undefined'
     ? `${window.location.origin}/post/${slug}`
@@ -37,13 +39,18 @@ export function ShareButtons({ title, slug, className = '' }: ShareButtonsProps)
     }
   };
 
+  const btnSize = compact ? 'h-7 w-7' : 'h-8 w-8';
+  const iconSize = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <span className="text-sm font-medium text-muted-foreground mr-1">Share:</span>
+    <div className={`flex items-center gap-1.5 ${compact ? '' : 'gap-2'} ${className}`}>
+      {!compact && (
+        <span className="text-sm font-medium text-muted-foreground mr-1">Share:</span>
+      )}
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className={btnSize}
         asChild
       >
         <a
@@ -52,13 +59,13 @@ export function ShareButtons({ title, slug, className = '' }: ShareButtonsProps)
           rel="noopener noreferrer"
           aria-label="Share on Twitter"
         >
-          <Twitter className="h-3.5 w-3.5" />
+          <Twitter className={iconSize} />
         </a>
       </Button>
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className={btnSize}
         asChild
       >
         <a
@@ -67,13 +74,13 @@ export function ShareButtons({ title, slug, className = '' }: ShareButtonsProps)
           rel="noopener noreferrer"
           aria-label="Share on Facebook"
         >
-          <Facebook className="h-3.5 w-3.5" />
+          <Facebook className={iconSize} />
         </a>
       </Button>
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className={btnSize}
         asChild
       >
         <a
@@ -82,17 +89,17 @@ export function ShareButtons({ title, slug, className = '' }: ShareButtonsProps)
           rel="noopener noreferrer"
           aria-label="Share on WhatsApp"
         >
-          <MessageCircle className="h-3.5 w-3.5" />
+          <MessageCircle className={iconSize} />
         </a>
       </Button>
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className={btnSize}
         onClick={handleCopyLink}
         aria-label="Copy link"
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5" />}
+        {copied ? <Check className={`${iconSize} text-emerald-500`} /> : <Link2 className={iconSize} />}
       </Button>
     </div>
   );

@@ -488,7 +488,7 @@ function PostsContent() {
                 </Table>
               </div>
             </>
-          )
+          )}
         </CardContent>
       </Card>
 
