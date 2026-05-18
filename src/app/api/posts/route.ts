@@ -209,6 +209,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Send push notification to readers if post is directly published
+    if (validated.status === "PUBLISHED") {
+      try {
+        const { sendPushToRole } = await import("@/lib/web-push-server");
+        await sendPushToRole("READER", {
+          title: "New Story Published!",
+          body: post.title,
+          url: `/post/${post.slug}`,
+          type: "new_post",
+        });
+      } catch (pushError) {
+        // Push failures should not block post creation
+        console.error("[Posts] Push notification failed for new post", post.id, pushError);
+      }
+    }
+
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

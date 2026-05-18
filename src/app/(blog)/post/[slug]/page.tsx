@@ -108,10 +108,10 @@ export default async function PostPage({ params }: PostPageProps) {
       tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
       _count: { select: { comments: true, bookmarks: true } },
     },
-    take: 30, // Fetch more candidates, then score and trim
+    take: 50, // Larger candidate pool for better diversity selection
   });
 
-  // Score candidates: +3 per shared category, +2 per shared tag, +1 recency, +1 featured
+  // Score candidates: +3 per shared category, +2 per shared tag, +1 recency, +1 featured, +popularity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const postCatIdSet = new Set(categoryIds);
   const postTagIdSet = new Set(tagIds);
@@ -126,6 +126,9 @@ export default async function PostPage({ params }: PostPageProps) {
     if (p.publishedAt && new Date(p.publishedAt) > thirtyDaysAgo) score += 1;
     // Featured bonus
     if (p.isFeatured) score += 1;
+    // Popularity weighting
+    if (p.views > 500) score += 2;
+    else if (p.views > 100) score += 1;
     return { ...p, _score: score };
   });
 
@@ -134,7 +137,21 @@ export default async function PostPage({ params }: PostPageProps) {
     (a, b) => b._score - a._score || (b.publishedAt?.getTime() || 0) - (a.publishedAt?.getTime() || 0),
   );
 
-  const relatedPosts = scored.slice(0, 6);
+  // Author diversity: no more than 2 posts from the same author in top 6
+  const selected: typeof scored = [];
+  const authorCount = new Map<string, number>();
+  const MAX_PER_AUTHOR = 2;
+
+  for (const p of scored) {
+    if (selected.length >= 6) break;
+    const count = authorCount.get(p.authorId) || 0;
+    if (count < MAX_PER_AUTHOR) {
+      selected.push(p);
+      authorCount.set(p.authorId, count + 1);
+    }
+  }
+
+  const relatedPosts = selected;
 
   // Fetch other posts by same author
   const authorPosts = await db.post.findMany({

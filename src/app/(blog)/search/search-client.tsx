@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   X,
   ChevronDown,
+  User,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,14 @@ interface Tag {
   _count?: { posts: number };
 }
 
+interface Author {
+  id: string;
+  name: string;
+  username: string;
+  image: string | null;
+  postCount: number;
+}
+
 const SORT_MAP: Record<SortOption, { sortBy: string; sortOrder: string }> = {
   newest: { sortBy: 'publishedAt', sortOrder: 'desc' },
   oldest: { sortBy: 'publishedAt', sortOrder: 'asc' },
@@ -64,6 +73,7 @@ export function SearchPageClient() {
   const initialType = (searchParams.get('type') as FilterType) || 'all';
   const initialCategory = searchParams.get('category') || '';
   const initialTag = searchParams.get('tag') || '';
+  const initialAuthorId = searchParams.get('authorId') || '';
   const initialDateFrom = searchParams.get('dateFrom') || '';
   const initialDateTo = searchParams.get('dateTo') || '';
   const initialSort = (searchParams.get('sort') as SortOption) || 'newest';
@@ -73,10 +83,18 @@ export function SearchPageClient() {
   const [filter, setFilter] = useState<FilterType>(initialType);
   const [categoryId, setCategoryId] = useState(initialCategory);
   const [tagId, setTagId] = useState(initialTag);
+  const [authorId, setAuthorId] = useState(initialAuthorId);
   const [dateFrom, setDateFrom] = useState(initialDateFrom);
   const [dateTo, setDateTo] = useState(initialDateTo);
   const [sort, setSort] = useState<SortOption>(initialSort);
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Author search state
+  const [authorSearch, setAuthorSearch] = useState('');
+  const [authorResults, setAuthorResults] = useState<Author[]>([]);
+  const [authorSearching, setAuthorSearching] = useState(false);
+  const [authorDropdownOpen, setAuthorDropdownOpen] = useState(false);
+  const authorSearchRef = useRef<HTMLDivElement>(null);
 
   // Data
   const [posts, setPosts] = useState<Parameters<typeof PostCard>[0]['post'][]>([]);
@@ -85,10 +103,11 @@ export function SearchPageClient() {
   const [searched, setSearched] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedAuthor, setSelectedAuthor] = useState<Author | null>(null);
 
   // Refs for latest state (avoids stale closures in effects)
-  const stateRef = useRef({ query, categoryId, tagId, dateFrom, dateTo, sort });
-  stateRef.current = { query, categoryId, tagId, dateFrom, dateTo, sort };
+  const stateRef = useRef({ query, categoryId, tagId, authorId, dateFrom, dateTo, sort });
+  stateRef.current = { query, categoryId, tagId, authorId, dateFrom, dateTo, sort };
 
   // Track if initial search has been done
   const initialSearchDone = useRef(false);
@@ -96,11 +115,12 @@ export function SearchPageClient() {
   // Sync URL params
   const syncURL = useCallback(() => {
     const params = new URLSearchParams();
-    const { query: q, categoryId: cat, tagId: tag, dateFrom: df, dateTo: dt, sort: s } = stateRef.current;
+    const { query: q, categoryId: cat, tagId: tag, authorId: auth, dateFrom: df, dateTo: dt, sort: s } = stateRef.current;
     if (q) params.set('q', q);
     if (filter && filter !== 'all') params.set('type', filter);
     if (cat) params.set('category', cat);
     if (tag) params.set('tag', tag);
+    if (auth) params.set('authorId', auth);
     if (df) params.set('dateFrom', df);
     if (dt) params.set('dateTo', dt);
     if (s && s !== 'newest') params.set('sort', s);
@@ -109,7 +129,7 @@ export function SearchPageClient() {
     router.replace(`/search${search ? `?${search}` : ''}`, { scroll: false });
   }, [filter, router]);
 
-  // Fetch categories and tags on mount
+  // Fetch categories and tags on mount, and resolve initial author
   useEffect(() => {
     async function fetchFilters() {
       try {
@@ -129,12 +149,68 @@ export function SearchPageClient() {
         // Silently fail
       }
     }
+
+    async function resolveInitialAuthor() {
+      if (!initialAuthorId) return;
+      try {
+        const res = await fetch(`/api/authors?limit=1&search=`);
+        if (res.ok) {
+          const data = await res.json();
+          const author = data.authors?.find((a: Author) => a.id === initialAuthorId);
+          if (author) {
+            setSelectedAuthor(author);
+          }
+        }
+      } catch {
+        // Silently fail
+      }
+    }
+
     fetchFilters();
+    resolveInitialAuthor();
+  }, [initialAuthorId]);
+
+  // Author search-as-you-type
+  useEffect(() => {
+    if (authorSearch.length < 2) {
+      setAuthorResults([]);
+      setAuthorDropdownOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setAuthorSearching(true);
+      try {
+        const res = await fetch(`/api/authors?search=${encodeURIComponent(authorSearch)}&limit=10`);
+        if (res.ok) {
+          const data = await res.json();
+          setAuthorResults(data.authors || []);
+          setAuthorDropdownOpen(true);
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setAuthorSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [authorSearch]);
+
+  // Close author dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (authorSearchRef.current && !authorSearchRef.current.contains(event.target as Node)) {
+        setAuthorDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Core search function
   const doSearch = useCallback(async () => {
-    const { query: q, categoryId: cat, tagId: tag, dateFrom: df, dateTo: dt, sort: s } = stateRef.current;
+    const { query: q, categoryId: cat, tagId: tag, authorId: auth, dateFrom: df, dateTo: dt, sort: s } = stateRef.current;
     setLoading(true);
     try {
       const sortConfig = SORT_MAP[s];
@@ -151,6 +227,9 @@ export function SearchPageClient() {
       }
       if (tag) {
         postsParams.set('tagId', tag);
+      }
+      if (auth) {
+        postsParams.set('authorId', auth);
       }
       if (df) {
         postsParams.set('dateFrom', df);
@@ -200,13 +279,13 @@ export function SearchPageClient() {
       doSearch();
       syncURL();
     }
-  }, [categoryId, tagId, dateFrom, dateTo, sort, filter, doSearch, syncURL]);
+  }, [categoryId, tagId, authorId, dateFrom, dateTo, sort, filter, doSearch, syncURL]);
 
   // Initial search from URL params
   useEffect(() => {
-    if (initialQuery || initialCategory || initialTag || initialDateFrom || initialDateTo) {
+    if (initialQuery || initialCategory || initialTag || initialAuthorId || initialDateFrom || initialDateTo) {
       doSearch();
-      if (initialCategory || initialTag || initialDateFrom || initialDateTo) {
+      if (initialCategory || initialTag || initialAuthorId || initialDateFrom || initialDateTo) {
         setFiltersOpen(true);
       }
     }
@@ -225,9 +304,25 @@ export function SearchPageClient() {
     setTagId((prev) => (prev === id ? '' : id));
   };
 
+  const handleAuthorSelect = (author: Author) => {
+    setAuthorId(author.id);
+    setSelectedAuthor(author);
+    setAuthorSearch('');
+    setAuthorDropdownOpen(false);
+  };
+
+  const handleAuthorClear = () => {
+    setAuthorId('');
+    setSelectedAuthor(null);
+    setAuthorSearch('');
+  };
+
   const clearFilters = () => {
     setCategoryId('');
     setTagId('');
+    setAuthorId('');
+    setSelectedAuthor(null);
+    setAuthorSearch('');
     setDateFrom('');
     setDateTo('');
     setSort('newest');
@@ -238,12 +333,13 @@ export function SearchPageClient() {
     let count = 0;
     if (categoryId) count++;
     if (tagId) count++;
+    if (authorId) count++;
     if (dateFrom) count++;
     if (dateTo) count++;
     if (sort !== 'newest') count++;
     if (filter !== 'all') count++;
     return count;
-  }, [categoryId, tagId, dateFrom, dateTo, sort, filter]);
+  }, [categoryId, tagId, authorId, dateFrom, dateTo, sort, filter]);
 
   const filteredPosts = filter === 'events' ? [] : posts;
   const filteredEvents = filter === 'posts' ? [] : events;
@@ -362,6 +458,68 @@ export function SearchPageClient() {
                 </Select>
               </div>
 
+              {/* Author Filter */}
+              <div className="space-y-2" ref={authorSearchRef}>
+                <Label htmlFor="author-filter">Author</Label>
+                {selectedAuthor ? (
+                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate flex-1">{selectedAuthor.name}</span>
+                    <X
+                      className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground shrink-0"
+                      onClick={handleAuthorClear}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="author-filter"
+                      type="text"
+                      placeholder="Search authors..."
+                      value={authorSearch}
+                      onChange={(e) => setAuthorSearch(e.target.value)}
+                      className="pl-9 w-full"
+                    />
+                    {authorSearching && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {authorDropdownOpen && authorResults.length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+                        {authorResults.map((author) => (
+                          <button
+                            key={author.id}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+                            onClick={() => handleAuthorSelect(author)}
+                          >
+                            {author.image ? (
+                              <img
+                                src={author.image}
+                                alt={author.name}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                                <User className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className="truncate">{author.name}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {author.postCount} {author.postCount === 1 ? 'post' : 'posts'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {authorDropdownOpen && authorSearch.length >= 2 && authorResults.length === 0 && !authorSearching && (
+                      <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md p-3 text-sm text-muted-foreground">
+                        No authors found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Date From */}
               <div className="space-y-2">
                 <Label htmlFor="date-from">Date From</Label>
@@ -373,8 +531,10 @@ export function SearchPageClient() {
                   className="w-full"
                 />
               </div>
+            </div>
 
-              {/* Date To */}
+            {/* Date To — separate row for better layout on 4-col grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="date-to">Date To</Label>
                 <Input
@@ -428,6 +588,16 @@ export function SearchPageClient() {
                       <X
                         className="h-3 w-3 cursor-pointer"
                         onClick={() => setTagId('')}
+                      />
+                    </Badge>
+                  )}
+                  {selectedAuthor && (
+                    <Badge variant="secondary" className="gap-1 text-xs shrink-0">
+                      <User className="h-3 w-3" />
+                      {selectedAuthor.name}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={handleAuthorClear}
                       />
                     </Badge>
                   )}
