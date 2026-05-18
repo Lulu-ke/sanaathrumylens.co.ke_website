@@ -75,3 +75,57 @@ Stage Summary:
 - All 4 post titles (Gengetone, Nairobi, Pumzi, Lamu) confirmed visible on homepage
 - ISR (60s) added so content/image changes propagate within 1 minute without redeploy
 - Post detail pages confirmed rendering images correctly
+
+---
+Task ID: 4-a
+Agent: Main Agent
+Task: Fix high-severity mobile-first design issues in dashboard pages
+
+Work Log:
+- Fixed ads/page.tsx: Added mobile card view (`sm:hidden`) with ad image, title, placement, status badge, date range, impressions/clicks stats, and inline action buttons (Edit/Pause/Resume/Delete); Wrapped desktop table in `hidden sm:block overflow-x-auto`; Fixed dialog date grid from `grid-cols-2` to `grid-cols-1 sm:grid-cols-2`; Fixed image URL row from `flex gap-2` to `flex flex-wrap gap-2`; Wrapped both mobile+desktop views in fragment to satisfy JSX ternary
+- Fixed tags/page.tsx: Added mobile card list (`sm:hidden`) with tag name, slug, post count, and edit/delete buttons; Wrapped desktop table in `hidden sm:block overflow-x-auto`
+- Fixed reading-lists-client.tsx: Changed remove button from `opacity-0 group-hover:opacity-100` to `opacity-100 sm:opacity-0 sm:group-hover:opacity-100` so it's always visible on mobile touch devices
+- Fixed campaigns/page.tsx: Changed header right side from `flex items-center gap-3` to `flex flex-wrap items-center gap-2` to prevent overflow on small screens
+- Fixed analytics/page.tsx: Changed stat card padding from `p-6` to `p-4 sm:p-6`; Changed stat value font from `text-2xl` to `text-xl sm:text-2xl`; Added mobile card list for Top Posts (`sm:hidden`) with rank, title link, and views badge; Wrapped desktop Top Posts table in `hidden sm:block`
+- Fixed flagged/page.tsx: Changed outer layout from `flex items-start justify-between gap-4` to `flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4`; Wrapped TabsList in `overflow-x-auto` div for horizontal scroll on mobile; Changed action buttons from `flex flex-col gap-2 shrink-0` to `flex flex-wrap gap-2 mt-2 sm:mt-0 shrink-0`
+- Fixed artists/page.tsx: Added mobile card list (`sm:hidden`) for list mode with artist avatar, name, stage name, type badge, location, active/featured badges, and inline action buttons (View/Edit/Feature/Unfeature/Delete); Wrapped desktop table in `hidden sm:block`
+- Fixed events/page.tsx: Added mobile card list (`sm:hidden`) for list mode with event title, date, type badge, location, active/free badges, and inline action buttons (Edit/Delete); Wrapped desktop table in `hidden sm:block`
+
+Stage Summary:
+- All 8 dashboard pages now have proper mobile-first responsive designs
+- Tables are hidden on mobile (`hidden sm:block`) and replaced with card views (`sm:hidden`)
+- Touch-friendly: remove buttons visible on mobile, action buttons wrap properly
+- Dialog forms responsive: date grids stack on mobile, image URL rows wrap
+- Tabs scrollable on mobile to prevent overflow
+- Header action rows wrap on small screens
+- Lint passes (no new errors introduced; pre-existing errors unchanged)
+
+---
+Task ID: 4-b
+Agent: Main Agent
+Task: Fix medium-severity mobile-first design issues in dashboard pages
+
+Work Log:
+- Fixed notifications/notifications-client.tsx: Changed stats card padding from `pt-6` to `p-4 sm:p-6`; Changed stat value font from `text-2xl` to `text-xl sm:text-2xl` for both Active Subscriptions and Unique Subscribers cards
+- Fixed reading-lists/reading-lists-client.tsx: Changed header from `flex items-center justify-between` to `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4` so title and "New List" button stack on mobile
+- Fixed sponsored/page.tsx: Changed filter Select from `w-44` to `w-full sm:w-44`; Added `flex-wrap` to action buttons row (`flex items-center gap-2` → `flex flex-wrap items-center gap-2`)
+- Fixed profile/page.tsx: Added `hidden sm:inline` to icon elements inside TabsTrigger (User, Lock, Shield icons) so tabs show text-only on mobile
+- Fixed settings/page.tsx: Added `hidden sm:inline` to icon elements inside TabsTrigger (Globe, Share2, Mail icons) so tabs show text-only on mobile
+- Fixed media/page.tsx: Changed preview dialog info grid from `grid grid-cols-2 gap-2` to `grid grid-cols-1 sm:grid-cols-2 gap-2` so file metadata labels stack on mobile
+- Fixed reader/dashboard-client.tsx: Changed custom tab button padding from `px-4 py-3` to `px-3 py-2.5 sm:px-4 sm:py-3` for tighter mobile fit
+- Fixed comments/page.tsx: Added `hidden sm:flex` to Approve and Reject buttons (hiding them on mobile); Added Approve and Reject as DropdownMenu items with `sm:hidden` class so they appear in the "more" dropdown on mobile only
+- Fixed campaigns/new/page.tsx: Added `flex-wrap` to action buttons row (`flex items-center gap-2` → `flex flex-wrap items-center gap-2`)
+- Fixed dashboard layout.tsx: Changed theme toggle icon button from `h-8 w-8` to `h-7 w-7 sm:h-8 sm:w-8`; Changed user menu button from `h-8` to `h-7 sm:h-8`; Changed NotificationBell button from `h-9 w-9` to `h-7 w-7 sm:h-8 sm:w-8`
+
+Stage Summary:
+- All 10 medium-severity mobile-first design issues fixed across 10 files
+- Stats cards: responsive padding and font sizes
+- Headers: stack vertically on mobile, row on desktop
+- Select filters: full-width on mobile, fixed on desktop
+- Tab icons: hidden on mobile for cleaner tabs, visible on desktop
+- Preview grids: single column on mobile, two columns on desktop
+- Tab padding: tighter on mobile
+- Comment actions: Approve/Reject moved to dropdown on mobile
+- Action buttons: wrap on small screens
+- Header icon buttons: smaller on mobile for tighter fit
+- Lint passes (no new errors introduced; pre-existing errors unchanged)
