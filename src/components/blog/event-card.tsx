@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, MapPin, Ticket } from 'lucide-react';
+import { Calendar, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface EventCardProps {
@@ -109,12 +109,6 @@ export function EventCard({ event }: EventCardProps) {
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 {[event.venue, event.city].filter((v, i, arr) => v && (i === 0 || !arr[0]?.toLowerCase().includes(v.toLowerCase()))).join(', ')}
-              </span>
-            )}
-            {!event.isFree && event.price && (
-              <span className="flex items-center gap-1.5">
-                <Ticket className="h-3.5 w-3.5 shrink-0" />
-                {event.price}
               </span>
             )}
           </div>
