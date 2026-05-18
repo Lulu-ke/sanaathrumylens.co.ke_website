@@ -101,6 +101,7 @@ const apiRoleRequirements: Record<string, string> = {
   "/api/media": "AUTHOR",
   "/api/bookmarks": "READER",
   "/api/comments": "READER",
+  "/api/community": "READER",
 };
 
 // ============================================
@@ -326,6 +327,14 @@ export async function middleware(request: NextRequest) {
     // Allow auth/signin on subdomains
     if (pathname.startsWith("/auth/signin")) {
       return NextResponse.next();
+    }
+
+    // Block /auth/signup on subdomains — redirect to base domain signup
+    if (pathname.startsWith("/auth/signup")) {
+      const signupUrl = buildBaseDomainUrl("/auth/signup", request);
+      const response = NextResponse.redirect(signupUrl);
+      response.headers.set("X-Debug", "signup-blocked-on-subdomain");
+      return response;
     }
 
     // On a subdomain, redirect / to /dashboard

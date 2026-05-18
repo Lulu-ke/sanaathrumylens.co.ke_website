@@ -28,6 +28,7 @@ const navLinks = [
   { href: '/category/visual-arts', label: 'Visual Arts' },
   { href: '/artists', label: 'Artists' },
   { href: '/events', label: 'Events' },
+  { href: '/community', label: 'Community' },
   { href: '/about', label: 'About' },
 ];
 

@@ -62,6 +62,7 @@ interface Post {
   featuredImage: string | null
   views: number
   createdAt: string
+  isCommunityVoice: boolean
   author: { id: string; name: string }
   categories: { category: { id: string; name: string; color: string | null } }[]
 }
@@ -243,12 +244,19 @@ function PostsContent() {
                   {postsData?.posts?.map((post) => (
                     <TableRow key={post.id}>
                       <TableCell>
-                        <Link
-                          href={`/dashboard/posts/${post.id}/edit`}
-                          className="font-medium hover:text-primary transition-colors"
-                        >
-                          {post.title}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/dashboard/posts/${post.id}/edit`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {post.title}
+                          </Link>
+                          {post.isCommunityVoice && (
+                            <Badge className="text-xs bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25 shrink-0">
+                              Community
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(post.status)}</TableCell>
                       <TableCell className="text-muted-foreground">{post.author.name}</TableCell>

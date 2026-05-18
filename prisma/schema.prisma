@@ -134,6 +134,7 @@ model Post {
   status          String   @default("DRAFT")  // DRAFT, PENDING_REVIEW, APPROVED, SCHEDULED, PUBLISHED, ARCHIVED, REJECTED, SPONSORED_REVIEW
   isFeatured      Boolean  @default(false)
   isSponsored     Boolean  @default(false)
+  isCommunityVoice Boolean @default(false)
   allowComments   Boolean  @default(true)
   readingTime     Int      @default(5)
   views           Int      @default(0)

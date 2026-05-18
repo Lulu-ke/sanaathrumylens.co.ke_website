@@ -54,7 +54,22 @@ export default async function PostPage({ params }: PostPageProps) {
 
   const post = await db.post.findUnique({
     where: { slug },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      content: true,
+      featuredImage: true,
+      coverImageAlt: true,
+      readingTime: true,
+      views: true,
+      publishedAt: true,
+      updatedAt: true,
+      allowComments: true,
+      isSponsored: true,
+      isCommunityVoice: true,
+      authorId: true,
       author: {
         select: { id: true, name: true, username: true, image: true, bio: true },
       },

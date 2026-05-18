@@ -30,6 +30,7 @@ interface PostDetailClientProps {
     allowComments: boolean;
     isBookmarked?: boolean;
     isSponsored: boolean;
+    isCommunityVoice: boolean;
     author: { id: string; name: string; username: string; image: string | null; bio: string | null };
     categories: { category: { id: string; name: string; slug: string; color: string | null } }[];
     tags: { tag: { id: string; name: string; slug: string } }[];
@@ -83,6 +84,13 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
               }}
             >
               {primaryCategory.name}
+            </Badge>
+          )}
+          {post.isCommunityVoice && (
+            <Badge
+              className="text-sm bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25"
+            >
+              Community Voice
             </Badge>
           )}
           {post.isSponsored && (
