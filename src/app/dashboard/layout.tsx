@@ -29,6 +29,7 @@ import {
   BarChart3,
   CalendarDays,
   Bookmark,
+  BookMarked,
   ExternalLink,
   Shield,
 } from "lucide-react"
@@ -152,6 +153,7 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
   READER: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Bookmarks", href: "/dashboard/reader", icon: Bookmark },
+    { label: "Reading Lists", href: "/dashboard/reading-lists", icon: BookMarked },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
 }

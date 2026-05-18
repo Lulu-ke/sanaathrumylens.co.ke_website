@@ -87,13 +87,18 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  // Fetch related posts (same categories, excluding current)
+  // Fetch related posts using tag matching + recency weighting
   const categoryIds = post.categories.map((c) => c.categoryId);
-  const relatedPosts = await db.post.findMany({
+  const tagIds = post.tags.map((t) => t.tagId);
+
+  const candidates = await db.post.findMany({
     where: {
       status: 'PUBLISHED',
       id: { not: post.id },
-      categories: { some: { categoryId: { in: categoryIds } } },
+      OR: [
+        { categories: { some: { categoryId: { in: categoryIds } } } },
+        { tags: { some: { tagId: { in: tagIds } } } },
+      ],
     },
     include: {
       author: { select: { id: true, name: true, username: true, image: true } },
@@ -103,9 +108,33 @@ export default async function PostPage({ params }: PostPageProps) {
       tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
       _count: { select: { comments: true, bookmarks: true } },
     },
-    take: 3,
-    orderBy: { publishedAt: 'desc' },
+    take: 30, // Fetch more candidates, then score and trim
   });
+
+  // Score candidates: +3 per shared category, +2 per shared tag, +1 recency, +1 featured
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const postCatIdSet = new Set(categoryIds);
+  const postTagIdSet = new Set(tagIds);
+
+  const scored = candidates.map((p) => {
+    let score = 0;
+    // Category overlap
+    score += p.categories.filter((c) => postCatIdSet.has(c.categoryId)).length * 3;
+    // Tag overlap
+    score += p.tags.filter((t) => postTagIdSet.has(t.tagId)).length * 2;
+    // Recency bonus
+    if (p.publishedAt && new Date(p.publishedAt) > thirtyDaysAgo) score += 1;
+    // Featured bonus
+    if (p.isFeatured) score += 1;
+    return { ...p, _score: score };
+  });
+
+  // Sort by score descending, then by publishedAt descending for ties
+  scored.sort(
+    (a, b) => b._score - a._score || (b.publishedAt?.getTime() || 0) - (a.publishedAt?.getTime() || 0),
+  );
+
+  const relatedPosts = scored.slice(0, 6);
 
   // Fetch other posts by same author
   const authorPosts = await db.post.findMany({

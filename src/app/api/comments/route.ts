@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission } from "@/lib/auth-helpers";
+import { sendPushToUser } from "@/lib/web-push-server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -124,6 +125,26 @@ export async function POST(request: NextRequest) {
         author: { select: { id: true, name: true, username: true, image: true } },
       },
     });
+
+    // If this is a reply, send push notification to the parent comment author
+    if (validated.parentId) {
+      try {
+        const parentComment = await db.comment.findUnique({
+          where: { id: validated.parentId },
+          select: { authorId: true },
+        });
+        if (parentComment && parentComment.authorId !== session.user.id) {
+          await sendPushToUser(parentComment.authorId, {
+            title: "New Reply",
+            body: `${session.user.name || "Someone"} replied to your comment`,
+            url: `/posts/${post.slug}`,
+            type: "comment_reply",
+          });
+        }
+      } catch (pushError) {
+        console.error("Failed to send push notification for comment reply:", pushError);
+      }
+    }
 
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {

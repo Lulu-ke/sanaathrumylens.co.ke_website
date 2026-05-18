@@ -100,6 +100,7 @@ const apiRoleRequirements: Record<string, string> = {
   "/api/dashboard": "MODERATOR",
   "/api/media": "AUTHOR",
   "/api/bookmarks": "READER",
+  "/api/reading-lists": "READER",
   "/api/comments": "READER",
   "/api/community": "READER",
 };
@@ -394,7 +395,7 @@ export async function middleware(request: NextRequest) {
     // Role-based path restrictions within subdomain dashboard
     // (Same as existing logic for base domain /dashboard)
     if (userRole === "READER") {
-      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/profile"];
+      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/reading-lists", "/dashboard/profile"];
       if (!allowedReaderPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
         return NextResponse.redirect(new URL("/dashboard/reader", request.url));
       }
@@ -498,7 +499,7 @@ export async function middleware(request: NextRequest) {
 
     // READERS can only access /dashboard and /dashboard/reader and /dashboard/profile
     if (userRole === "READER") {
-      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/profile"];
+      const allowedReaderPaths = ["/dashboard", "/dashboard/reader", "/dashboard/reading-lists", "/dashboard/profile"];
       if (!allowedReaderPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
         return NextResponse.redirect(new URL("/dashboard/reader", request.url));
       }

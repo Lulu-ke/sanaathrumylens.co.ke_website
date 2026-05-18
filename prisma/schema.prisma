@@ -32,6 +32,7 @@ model User {
   reviewedPosts      Post[]          @relation("ReviewedPosts")
   comments           Comment[]
   bookmarks          Bookmark[]
+  readingLists       ReadingList[]
   revisions          PostRevision[]
   moderatedComments  Comment[]       @relation("ModeratedComments")
   accounts           Account[]
@@ -153,13 +154,14 @@ model Post {
   reviewedById    String?
   reviewedBy      User?    @relation("ReviewedPosts", fields: [reviewedById], references: [id])
 
-  categories      PostCategory[]
-  tags            PostTag[]
-  comments        Comment[]
-  revisions       PostRevision[]
-  bookmarks       Bookmark[]
-  dailyStats      DailyStat[]
-  artists         ArtistPost[]
+  categories         PostCategory[]
+  tags               PostTag[]
+  comments           Comment[]
+  revisions          PostRevision[]
+  bookmarks          Bookmark[]
+  readingListItems   ReadingListItem[]
+  dailyStats         DailyStat[]
+  artists            ArtistPost[]
 
   @@index([slug])
   @@index([status])
@@ -339,6 +341,42 @@ model Bookmark {
 
   @@unique([userId, postId])
   @@index([userId])
+}
+
+// ============================================
+// READING LISTS / COLLECTIONS
+// ============================================
+
+model ReadingList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  slug        String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       ReadingListItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([slug])
+  @@index([isPublic])
+}
+
+model ReadingListItem {
+  id             String   @id @default(cuid())
+  readingListId  String
+  postId         String
+  note           String?
+  createdAt      DateTime @default(now())
+
+  readingList    ReadingList @relation(fields: [readingListId], references: [id], onDelete: Cascade)
+  post           Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([readingListId, postId])
+  @@index([readingListId])
+  @@index([postId])
 }
 
 // ============================================

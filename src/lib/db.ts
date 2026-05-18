@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   try {
     // Check if the cached client has all expected models
-    if (typeof (globalForPrisma.prisma as Record<string, unknown>).artist === 'undefined') {
+    if (typeof (globalForPrisma.prisma as Record<string, unknown>).readingList === 'undefined') {
       console.log('[db] Schema changed detected, recreating PrismaClient')
       globalForPrisma.prisma = undefined
     }

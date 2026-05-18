@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission, generateUniqueSlug } from "@/lib/auth-helpers";
+import { sendPushToRole } from "@/lib/web-push-server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -100,6 +101,18 @@ export async function POST(request: NextRequest) {
       );
     } catch {
       // Notification is best-effort
+    }
+
+    // Send push notification to editors about community submission
+    try {
+      await sendPushToRole("EDITOR", {
+        title: "Community Submission",
+        body: `A new community voice submission awaits review`,
+        url: "/dashboard/posts",
+        type: "new_post",
+      });
+    } catch (pushError) {
+      console.error("Failed to send push notification for community submission:", pushError);
     }
 
     return NextResponse.json(

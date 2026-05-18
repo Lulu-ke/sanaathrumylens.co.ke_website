@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
     const tagId = searchParams.get("tagId") || undefined;
     const isFeatured = searchParams.get("isFeatured") || undefined;
+    const dateFrom = searchParams.get("dateFrom") || undefined;
+    const dateTo = searchParams.get("dateTo") || undefined;
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
@@ -66,6 +68,17 @@ export async function GET(request: NextRequest) {
     }
     if (tagId) {
       where.tags = { some: { tagId } };
+    }
+    // Date range filtering on publishedAt
+    if (dateFrom || dateTo) {
+      const publishedAtFilter: Record<string, Date> = {};
+      if (dateFrom) {
+        publishedAtFilter.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        publishedAtFilter.lte = new Date(dateTo + "T23:59:59");
+      }
+      where.publishedAt = publishedAtFilter;
     }
     if (search) {
       where.OR = [

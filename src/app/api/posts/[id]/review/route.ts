@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasPermission, createNotification, notifyUsersByRole } from "@/lib/auth-helpers";
+import { sendPushToUser, sendPushToRole } from "@/lib/web-push-server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -57,6 +58,18 @@ export async function POST(
     } catch (notifError) {
       console.error("Failed to send review notification:", notifError);
       // Don't fail the request if notification fails
+    }
+
+    // Send push notification to editors
+    try {
+      await sendPushToRole("EDITOR", {
+        title: "New Submission",
+        body: `"${post.title}" awaits review`,
+        url: "/dashboard/posts",
+        type: "new_post",
+      });
+    } catch (pushError) {
+      console.error("Failed to send push notification for review:", pushError);
     }
 
     return NextResponse.json(updatedPost);
@@ -130,6 +143,18 @@ export async function PATCH(
         console.error("Failed to send approval notification:", notifError);
       }
 
+      // Send push notification to the author
+      try {
+        await sendPushToUser(post.authorId, {
+          title: "Post Approved!",
+          body: `"${post.title}" has been approved`,
+          url: "/dashboard/posts",
+          type: "post_approved",
+        });
+      } catch (pushError) {
+        console.error("Failed to send push notification for approval:", pushError);
+      }
+
       return NextResponse.json(updatedPost);
     } else {
       if (!validated.rejectedReason) {
@@ -164,6 +189,18 @@ export async function PATCH(
         );
       } catch (notifError) {
         console.error("Failed to send rejection notification:", notifError);
+      }
+
+      // Send push notification to the author
+      try {
+        await sendPushToUser(post.authorId, {
+          title: "Post Needs Revision",
+          body: `"${post.title}" was not approved`,
+          url: "/dashboard/posts",
+          type: "post_rejected",
+        });
+      } catch (pushError) {
+        console.error("Failed to send push notification for rejection:", pushError);
       }
 
       return NextResponse.json(updatedPost);

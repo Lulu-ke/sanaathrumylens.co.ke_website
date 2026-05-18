@@ -84,7 +84,9 @@ self.addEventListener("push", (event) => {
     title: "New Notification",
     body: "You have a new notification",
     icon: "/icon-192x192.png",
-    link: "/",
+    badge: "/icon-192x192.png",
+    url: "/",
+    type: "info",
   }
 
   if (event.data) {
@@ -96,14 +98,27 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  // Map notification type to appropriate icon/badge
+  const typeIcons = {
+    new_post: { icon: "/icon-192x192.png", badge: "/icon-192x192.png" },
+    comment_reply: { icon: "/icon-192x192.png", badge: "/icon-192x192.png" },
+    post_approved: { icon: "/icon-192x192.png", badge: "/icon-192x192.png" },
+    post_rejected: { icon: "/icon-192x192.png", badge: "/icon-192x192.png" },
+  }
+
+  const icons = typeIcons[data.type] || typeIcons.info || {}
+
   const options = {
     body: data.body,
-    icon: data.icon,
-    badge: "/icon-192x192.png",
+    icon: data.icon || icons.icon || "/icon-192x192.png",
+    badge: data.badge || icons.badge || "/icon-192x192.png",
     data: {
-      link: data.link,
+      link: data.url || "/",
+      type: data.type || "info",
     },
     vibrate: [100, 50, 100],
+    tag: `push-${data.type || "info"}-${Date.now()}`,
+    requireInteraction: data.type === "post_rejected",
   }
 
   event.waitUntil(self.registration.showNotification(data.title, options))
@@ -114,11 +129,13 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close()
 
   const targetUrl = event.notification.data?.link || "/"
+  const notificationType = event.notification.data?.type || "info"
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
+        // If there's already a window open, navigate it to the target URL
         for (const client of clientList) {
           if (
             client.url.includes(self.location.origin) &&
@@ -128,6 +145,7 @@ self.addEventListener("notificationclick", (event) => {
             return client.focus()
           }
         }
+        // No window open, open a new one
         return self.clients.openWindow(targetUrl)
       })
   )

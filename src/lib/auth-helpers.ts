@@ -138,7 +138,7 @@ export function generateSlug(text: string): string {
  */
 export async function generateUniqueSlug(
   text: string,
-  model: "Post" | "Category" | "Tag" | "Event" | "Artist"
+  model: "Post" | "Category" | "Tag" | "Event" | "Artist" | "ReadingList"
 ): Promise<string> {
   const baseSlug = generateSlug(text);
   let slug = baseSlug;
