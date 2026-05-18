@@ -147,6 +147,7 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
   MODERATOR: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
+    { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Moderation", href: "/dashboard/moderation", icon: Shield },
     { label: "Flagged", href: "/dashboard/flagged", icon: Flag },
     { label: "Profile", href: "/dashboard/profile", icon: User },

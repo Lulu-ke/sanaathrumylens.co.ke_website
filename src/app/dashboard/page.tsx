@@ -47,6 +47,19 @@ export default function DashboardPage() {
     },
   })
 
+  // Fetch flagged content count for moderator dashboard
+  const { data: flaggedData } = useQuery<{ counts: { status: string; _count: { id: number } }[] }>({
+    queryKey: ["moderator", "flagged-counts"],
+    queryFn: async () => {
+      const res = await fetch("/api/flagged")
+      if (!res.ok) throw new Error("Failed to fetch")
+      return res.json()
+    },
+    enabled: role === "MODERATOR",
+  })
+
+  const pendingFlaggedCount = flaggedData?.counts?.find((c) => c.status === "PENDING")?._count?.id || 0
+
   const statCards = () => {
     // Moderator-specific stats
     if (role === "MODERATOR") {
@@ -80,9 +93,9 @@ export default function DashboardPage() {
         },
         {
           title: "Flagged Content",
-          value: 0,
+          value: pendingFlaggedCount,
           icon: Clock,
-          description: "Needs attention",
+          description: pendingFlaggedCount > 0 ? "Needs attention" : "All clear",
           href: "/dashboard/flagged",
           color: "text-orange-600",
           bgColor: "bg-orange-50 dark:bg-orange-950/30",
@@ -315,7 +328,8 @@ export default function DashboardPage() {
                 {stats.recentPosts.map((post) => (
                   <Link
                     key={post.id}
-                    href={`/dashboard/posts/${post.id}/edit`}
+                    href={role === "MODERATOR" ? `/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
+                    target={role === "MODERATOR" ? "_blank" : undefined}
                     className="flex items-center justify-between py-2 hover:bg-muted/50 -mx-2 px-2 rounded-md transition-colors"
                   >
                     <div className="min-w-0 flex-1">

@@ -97,6 +97,7 @@ function PostsContent() {
   const canCreatePost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
   const canEditPost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
   const canDeletePost = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(role)
+  const canViewOnly = isModerator
 
   const { data: postsData, isLoading } = useQuery<PostsResponse>({
     queryKey: ["posts", search, statusFilter, currentPage, currentLimit],
@@ -252,7 +253,8 @@ function PostsContent() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Link
-                            href={`/dashboard/posts/${post.id}/edit`}
+                            href={canViewOnly ? `/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
+                            target={canViewOnly ? "_blank" : undefined}
                             className="font-medium hover:text-primary transition-colors"
                           >
                             {post.title}
@@ -295,12 +297,14 @@ function PostsContent() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/posts/${post.id}/edit`}>
-                                <Pencil className="mr-2 size-4" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
+                            {canEditPost && (
+                              <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/posts/${post.id}/edit`}>
+                                  <Pencil className="mr-2 size-4" />
+                                  Edit
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem asChild>
                               <Link href={`/post/${post.slug}`} target="_blank">
                                 <Eye className="mr-2 size-4" />

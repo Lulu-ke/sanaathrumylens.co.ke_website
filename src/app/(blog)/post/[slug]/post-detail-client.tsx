@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ShareButtons } from '@/components/blog/share-buttons';
 import { BookmarkButton } from '@/components/blog/bookmark-button';
 import { SaveToListButton } from '@/components/blog/save-to-list-button';
+import { FlagCommentButton } from '@/components/blog/flag-comment-button';
 import { CommentSection } from '@/components/blog/comment-section';
 import { PostCard } from '@/components/blog/post-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
@@ -159,6 +160,12 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
               size="sm"
               showLabel
             />
+            <FlagCommentButton
+              commentId={post.id}
+              contentType="POST"
+              variant="outline"
+              size="sm"
+            />
             <ShareButtons title={post.title} slug={post.slug} />
           </div>
         </div>
@@ -225,6 +232,12 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
             variant="outline"
             size="sm"
             showLabel
+          />
+          <FlagCommentButton
+            commentId={post.id}
+            contentType="POST"
+            variant="outline"
+            size="sm"
           />
         </div>
       </div>

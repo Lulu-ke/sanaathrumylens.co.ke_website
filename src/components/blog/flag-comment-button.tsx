@@ -29,6 +29,7 @@ interface FlagCommentButtonProps {
   contentType?: 'COMMENT' | 'POST';
   variant?: 'ghost' | 'outline';
   size?: 'sm' | 'default';
+  showLabel?: boolean;
 }
 
 const FLAG_REASONS = [
@@ -45,6 +46,7 @@ export function FlagCommentButton({
   contentType = 'COMMENT',
   variant = 'ghost',
   size = 'sm',
+  showLabel = true,
 }: FlagCommentButtonProps) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
@@ -95,26 +97,31 @@ export function FlagCommentButton({
     return null;
   }
 
+  const label = contentType === 'POST' ? 'Report Post' : 'Report';
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           variant={variant}
           size={size}
-          className="h-6 px-2 text-xs text-muted-foreground hover:text-amber-600"
+          className={contentType === 'POST' ? 'text-muted-foreground hover:text-amber-600' : 'h-6 px-2 text-xs text-muted-foreground hover:text-amber-600'}
         >
-          <Flag className="h-3 w-3 mr-1" />
-          Report
+          <Flag className={contentType === 'POST' ? 'h-4 w-4 mr-1.5' : 'h-3 w-3 mr-1'} />
+          {showLabel && label}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="h-5 w-5 text-amber-500" />
-            Report Content
+            {contentType === 'POST' ? 'Report Article' : 'Report Content'}
           </DialogTitle>
           <DialogDescription>
-            Help us keep the community safe. Reports are reviewed by our moderation team.
+            {contentType === 'POST'
+              ? 'Report this article for review. Our moderation team will assess it.'
+              : 'Help us keep the community safe. Reports are reviewed by our moderation team.'
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

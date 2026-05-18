@@ -11,11 +11,15 @@ import {
   Clock,
   AlertTriangle,
   Flag,
+  FileText,
+  Eye,
+  ExternalLink,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 
 interface PendingComment {
@@ -24,6 +28,17 @@ interface PendingComment {
   createdAt: string
   author: { id: string; name: string; image: string | null }
   post: { id: string; title: string; slug: string }
+}
+
+interface PostOverview {
+  id: string
+  title: string
+  slug: string
+  status: string
+  views: number
+  createdAt: string
+  author: { id: string; name: string; image: string | null }
+  _count: { comments: number; bookmarks: number }
 }
 
 export default function ModerationPage() {
@@ -61,6 +76,16 @@ export default function ModerationPage() {
 
   const pendingFlaggedCount = flaggedData?.counts?.find((c) => c.status === "PENDING")?._count?.id || 0
 
+  // Fetch recent posts for overview
+  const { data: postsData, isLoading: loadingPosts } = useQuery<{ posts: PostOverview[] }>({
+    queryKey: ["moderation", "recent-posts"],
+    queryFn: async () => {
+      const res = await fetch("/api/posts?limit=5&status=PUBLISHED")
+      if (!res.ok) throw new Error("Failed to fetch posts")
+      return res.json()
+    },
+  })
+
   const moderateMutation = useMutation({
     mutationFn: async ({ commentId, action }: { commentId: string; action: "APPROVE" | "REJECT" }) => {
       const res = await fetch(`/api/comments/${commentId}`, {
@@ -78,6 +103,17 @@ export default function ModerationPage() {
     onError: () => toast.error("Failed to moderate comment"),
   })
 
+  const getPostStatusBadge = (status: string) => {
+    const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      PUBLISHED: { label: "Published", variant: "default" },
+      DRAFT: { label: "Draft", variant: "secondary" },
+      PENDING_REVIEW: { label: "Pending", variant: "outline" },
+      REJECTED: { label: "Rejected", variant: "destructive" },
+    }
+    const info = map[status] || { label: status, variant: "secondary" as const }
+    return <Badge variant={info.variant}>{info.label}</Badge>
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -91,7 +127,7 @@ export default function ModerationPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -101,7 +137,7 @@ export default function ModerationPage() {
             </div>
             <div className="mt-3">
               <p className="text-2xl font-bold">{pendingComments?.length || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Pending Review</p>
+              <p className="text-xs text-muted-foreground mt-1">Pending Comments</p>
             </div>
           </CardContent>
         </Card>
@@ -114,7 +150,7 @@ export default function ModerationPage() {
             </div>
             <div className="mt-3">
               <p className="text-2xl font-bold">{recentComments?.length || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Total Comments</p>
+              <p className="text-xs text-muted-foreground mt-1">Recent Comments</p>
             </div>
           </CardContent>
         </Card>
@@ -128,6 +164,19 @@ export default function ModerationPage() {
             <div className="mt-3">
               <p className="text-2xl font-bold">{pendingFlaggedCount}</p>
               <p className="text-xs text-muted-foreground mt-1">Flagged Content</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="bg-sky-50 dark:bg-sky-950/30 p-2 rounded-lg">
+                <FileText className="size-5 text-sky-600" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl font-bold">{postsData?.posts?.length || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">Recent Posts</p>
             </div>
           </CardContent>
         </Card>
@@ -161,10 +210,16 @@ export default function ModerationPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="size-6">
+                          <AvatarImage src={comment.author.image || undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {comment.author.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="text-sm font-medium">{comment.author.name}</span>
                         <Badge variant="outline" className="text-[10px]">Pending</Badge>
                         <span className="text-xs text-muted-foreground">
-                          on <a href={`/post/${comment.post.slug}`} className="hover:text-primary transition-colors" target="_blank">{comment.post.title}</a>
+                          on <a href={`/post/${comment.post.slug}`} className="hover:text-primary transition-colors" target="_blank" rel="noopener noreferrer">{comment.post.title}</a>
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-3">{comment.content}</p>
@@ -208,22 +263,90 @@ export default function ModerationPage() {
         </CardContent>
       </Card>
 
-      {/* Community Guidelines Reminder */}
-      <Card className="border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-950/20">
+      {/* Posts Overview */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-violet-500" />
-            Moderation Guidelines
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Posts Overview
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Monitor published content — click to view on site, flag problematic posts
+              </CardDescription>
+            </div>
+            <Link href="/dashboard/posts">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                View All Posts
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>As a moderator, you help keep the Sanaa community safe and respectful. When reviewing comments:</p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>Approve</strong> comments that are respectful, on-topic, and add value to the conversation</li>
-            <li><strong>Reject</strong> comments that contain hate speech, personal attacks, spam, or are off-topic</li>
-            <li>Be fair and consistent — everyone deserves a voice as long as it&apos;s respectful</li>
-            <li>When in doubt, approve — the community can flag inappropriate content later</li>
-          </ul>
+        <CardContent>
+          {loadingPosts ? (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2 p-4 border rounded-lg">
+                  <Skeleton className="h-4 w-64" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ))}
+            </div>
+          ) : postsData?.posts && postsData.posts.length > 0 ? (
+            <div className="space-y-3">
+              {postsData.posts.map((post) => (
+                <div key={post.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {getPostStatusBadge(post.status)}
+                        <span className="text-xs text-muted-foreground">
+                          by {post.author.name}
+                        </span>
+                      </div>
+                      <a
+                        href={`/post/${post.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium hover:text-primary transition-colors inline-flex items-center gap-1"
+                      >
+                        {post.title}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" />
+                          {post.views} views
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          {post._count.comments} comments
+                        </span>
+                        <span>
+                          {new Date(post.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a href={`/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" variant="outline" className="gap-1">
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="font-medium text-muted-foreground">No published posts</p>
+              <p className="text-sm text-muted-foreground mt-1">Posts will appear here once published</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -234,22 +357,68 @@ export default function ModerationPage() {
             <Flag className="h-5 w-5 text-amber-500" />
             Flagged Content
           </CardTitle>
-          <CardDescription>Flagged content is reviewed on the dedicated Flagged Content page</CardDescription>
+          <CardDescription>
+            {pendingFlaggedCount > 0
+              ? `${pendingFlaggedCount} item${pendingFlaggedCount > 1 ? 's' : ''} awaiting your review`
+              : "Flagged content is reviewed on the dedicated Flagged Content page"
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <Shield className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="font-medium text-muted-foreground">Review flagged content</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              When readers flag comments or content, they&apos;ll appear on the Flagged Content page for your review
-            </p>
-            <Link href="/dashboard/flagged">
-              <Button className="mt-4 gap-1.5">
-                <Flag className="h-4 w-4" />
-                View Flagged Content
-              </Button>
-            </Link>
-          </div>
+          {pendingFlaggedCount > 0 ? (
+            <div className="text-center py-4">
+              <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 mb-4">
+                <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+                <p className="font-medium text-amber-700 dark:text-amber-400">
+                  {pendingFlaggedCount} item{pendingFlaggedCount > 1 ? 's' : ''} flagged by the community
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Please review these reports and take appropriate action
+                </p>
+              </div>
+              <Link href="/dashboard/flagged">
+                <Button className="gap-1.5">
+                  <Flag className="h-4 w-4" />
+                  Review Flagged Content
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Shield className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="font-medium text-muted-foreground">No flagged content</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                When readers flag comments or posts, they&apos;ll appear on the Flagged Content page for your review
+              </p>
+              <Link href="/dashboard/flagged">
+                <Button variant="outline" className="mt-4 gap-1.5">
+                  <Flag className="h-4 w-4" />
+                  View Flagged Content
+                </Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Community Guidelines Reminder */}
+      <Card className="border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-950/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-violet-500" />
+            Moderation Guidelines
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+          <p>As a moderator, you help keep the Sanaa community safe and respectful. When reviewing content:</p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Approve</strong> comments that are respectful, on-topic, and add value to the conversation</li>
+            <li><strong>Reject</strong> comments that contain hate speech, personal attacks, spam, or are off-topic</li>
+            <li><strong>Flag posts</strong> that violate community guidelines by using the Report button on the article page</li>
+            <li>Be fair and consistent — everyone deserves a voice as long as it&apos;s respectful</li>
+            <li>When in doubt, approve — the community can flag inappropriate content later</li>
+            <li>Review flagged content promptly to maintain a safe community environment</li>
+          </ul>
         </CardContent>
       </Card>
     </div>
