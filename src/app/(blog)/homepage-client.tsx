@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, Clock, User, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
@@ -8,6 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselApi,
+} from '@/components/ui/carousel';
 import { TrendingTicker } from '@/components/blog/trending-ticker';
 import { PostCard } from '@/components/blog/post-card';
 import { EventCard } from '@/components/blog/event-card';
@@ -23,20 +29,22 @@ interface CategoryWithCount {
   _count: { posts: number };
 }
 
+interface HeroPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featuredImage: string | null;
+  readingTime: number;
+  views: number;
+  publishedAt: string | null;
+  author: { id: string; name: string; username: string; image: string | null };
+  categories: { category: { id: string; name: string; slug: string; color: string | null } }[];
+  _count: { comments: number; bookmarks: number };
+}
+
 interface HomePageProps {
-  heroPost: {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string | null;
-    featuredImage: string | null;
-    readingTime: number;
-    views: number;
-    publishedAt: string | null;
-    author: { id: string; name: string; username: string; image: string | null };
-    categories: { category: { id: string; name: string; slug: string; color: string | null } }[];
-    _count: { comments: number; bookmarks: number };
-  } | null;
+  heroPosts: HeroPost[];
   gridPosts: Parameters<typeof PostCard>[0]['post'][];
   categories: CategoryWithCount[];
   events: Parameters<typeof EventCard>[0]['event'][];
@@ -45,7 +53,7 @@ interface HomePageProps {
 }
 
 export function HomepageClient({
-  heroPost,
+  heroPosts,
   gridPosts,
   categories,
   events,
@@ -73,77 +81,93 @@ export function HomepageClient({
       {/* Trending Ticker */}
       <TrendingTicker posts={trendingPosts} />
 
-      {/* Hero Section + Sidebar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ===== SECTION 1: Full-Width Hero Carousel ===== */}
+      <HeroCarousel heroPosts={heroPosts} />
+
+      {/* ===== SECTION 2: Latest Stories + Sidebar ===== */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Hero Featured Post */}
+          {/* Left Column (2/3): Latest Stories */}
           <div className="lg:col-span-2">
-            {heroPost ? (
-              <Link href={`/post/${heroPost.slug}`} className="group block">
-                <div className="relative aspect-[16/9] lg:aspect-[16/10] rounded-xl overflow-hidden">
-                  <Image
-                    src={heroPost.featuredImage || '/placeholder-hero.svg'}
-                    alt={heroPost.title}
-                    fill
-                    priority
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="(max-width: 1024px) 100vw, 66vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8">
-                    {heroPost.categories[0]?.category && (
-                      <Badge
-                        className="mb-3 text-xs font-medium"
-                        style={{
-                          backgroundColor: heroPost.categories[0].category.color || undefined,
-                          color: '#fff',
-                          border: 'none',
-                        }}
-                      >
-                        {heroPost.categories[0].category.name}
-                      </Badge>
-                    )}
-                    <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight mb-3">
-                      {heroPost.title}
-                    </h1>
-                    {heroPost.excerpt && (
-                      <p className="text-white/80 text-sm sm:text-base line-clamp-2 mb-3 max-w-2xl">
-                        {heroPost.excerpt}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 text-white/70 text-sm">
-                      <span className="flex items-center gap-1">
-                        <User className="h-3.5 w-3.5" />
-                        {heroPost.author.name}
-                      </span>
-                      {heroPost.publishedAt && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {new Date(heroPost.publishedAt).toLocaleDateString('en-KE', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {heroPost.readingTime} min read
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ) : (
-              <div className="aspect-[16/9] lg:aspect-[16/10] rounded-xl bg-muted flex items-center justify-center">
-                <p className="text-muted-foreground">No featured post yet</p>
+            {/* Section Header */}
+            <div className="mb-6">
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4">Latest Stories</h2>
+              <div className="flex gap-1 overflow-x-auto pb-2 custom-scrollbar -mx-1 px-1">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
+                    !selectedCategory
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                >
+                  All
+                </button>
+                {navCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.slug === selectedCategory ? null : cat.slug)}
+                    className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
+                      selectedCategory === cat.slug
+                        ? 'text-white shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
+                    style={
+                      selectedCategory === cat.slug
+                        ? { backgroundColor: cat.color || undefined }
+                        : undefined
+                    }
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Post Grid — 2 columns within this 2/3 section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {visiblePosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+
+            {visiblePosts.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-lg">No posts found in this category</p>
               </div>
             )}
+
+            {/* Load More */}
+            {hasMore && (
+              <div className="text-center mt-8">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setVisibleCount((prev) => prev + 8)}
+                  className="gap-2"
+                >
+                  Load More Stories
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Between Posts Ad */}
+            <div className="mt-8">
+              <AdSlot placement="BETWEEN_POSTS" />
+            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Trending Posts */}
+          {/* Right Column (1/3): Sidebar */}
+          <aside className="space-y-6">
+            {/* Google Ad Slot */}
+            <Card className="overflow-hidden">
+              <CardContent className="p-4">
+                <AdSlot placement="SIDEBAR" />
+              </CardContent>
+            </Card>
+
+            {/* Trending Now */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -178,7 +202,7 @@ export function HomepageClient({
               </CardContent>
             </Card>
 
-            {/* Sponsored Ad */}
+            {/* Sponsored Ad from DB */}
             {ads.length > 0 && (
               <Card className="overflow-hidden">
                 <a href={ads[0].linkUrl} target="_blank" rel="noopener noreferrer">
@@ -256,77 +280,7 @@ export function HomepageClient({
                 </CardContent>
               </Card>
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* Category Tabs + Post Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4">Latest Stories</h2>
-          <div className="flex gap-1 overflow-x-auto pb-2 custom-scrollbar -mx-1 px-1">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
-                !selectedCategory
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
-              }`}
-            >
-              All
-            </button>
-            {navCategories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.slug === selectedCategory ? null : cat.slug)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
-                  selectedCategory === cat.slug
-                    ? 'text-white shadow-sm'
-                    : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
-                }`}
-                style={
-                  selectedCategory === cat.slug
-                    ? { backgroundColor: cat.color || undefined }
-                    : undefined
-                }
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Post Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {visiblePosts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
-
-        {visiblePosts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">No posts found in this category</p>
-          </div>
-        )}
-
-        {/* Load More */}
-        {hasMore && (
-          <div className="text-center mt-8">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setVisibleCount((prev) => prev + 8)}
-              className="gap-2"
-            >
-              Load More Stories
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {/* Between Posts Ad */}
-        <div className="mt-8">
-          <AdSlot placement="BETWEEN_POSTS" />
+          </aside>
         </div>
       </section>
 
@@ -433,5 +387,160 @@ export function HomepageClient({
         </div>
       </section>
     </div>
+  );
+}
+
+// ============================================
+// Full-Width Hero Carousel Component
+// ============================================
+function HeroCarousel({ heroPosts }: { heroPosts: HeroPost[] }) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+  }, [api]);
+
+  useEffect(() => {
+    if (!api) return;
+    onSelect();
+    api.on('select', onSelect);
+    api.on('reInit', onSelect);
+    return () => {
+      api.off('select', onSelect);
+    };
+  }, [api, onSelect]);
+
+  // Auto-advance every 6 seconds
+  useEffect(() => {
+    if (!api) return;
+    const interval = setInterval(() => {
+      api.scrollNext();
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [api]);
+
+  if (heroPosts.length === 0) {
+    return (
+      <section className="w-full">
+        <div className="aspect-[21/9] sm:aspect-[21/8] bg-muted flex items-center justify-center">
+          <p className="text-muted-foreground">No featured posts yet</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="w-full">
+      <div className="relative">
+        <Carousel
+          setApi={setApi}
+          opts={{
+            loop: true,
+            align: 'start',
+          }}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-0">
+            {heroPosts.map((post) => (
+              <CarouselItem key={post.id} className="pl-0">
+                <Link href={`/post/${post.slug}`} className="group block relative">
+                  <div className="relative aspect-[16/9] sm:aspect-[21/9]">
+                    <Image
+                      src={post.featuredImage || '/placeholder-hero.svg'}
+                      alt={post.title}
+                      fill
+                      priority
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      sizes="100vw"
+                    />
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+                    {/* Content overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 lg:p-12 max-w-4xl">
+                      {post.categories[0]?.category && (
+                        <Badge
+                          className="mb-3 text-xs font-medium"
+                          style={{
+                            backgroundColor: post.categories[0].category.color || undefined,
+                            color: '#fff',
+                            border: 'none',
+                          }}
+                        >
+                          {post.categories[0].category.name}
+                        </Badge>
+                      )}
+                      <h2 className="font-serif text-xl sm:text-3xl lg:text-5xl font-bold text-white leading-tight mb-2 sm:mb-3">
+                        {post.title}
+                      </h2>
+                      {post.excerpt && (
+                        <p className="text-white/80 text-sm sm:text-base line-clamp-2 mb-3 max-w-2xl hidden sm:block">
+                          {post.excerpt}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3 text-white/70 text-xs sm:text-sm">
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          {post.author.name}
+                        </span>
+                        {post.publishedAt && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            {new Date(post.publishedAt).toLocaleDateString('en-KE', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          {post.readingTime} min read
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+
+          {/* Navigation arrows — positioned inside the carousel */}
+          <div className="absolute right-4 sm:right-8 lg:right-12 bottom-4 sm:bottom-8 lg:bottom-12 flex items-center gap-2 z-10">
+            <button
+              onClick={() => api?.scrollPrev()}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 text-white flex items-center justify-center transition-colors"
+              aria-label="Previous slide"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 sm:h-5 sm:w-5"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button
+              onClick={() => api?.scrollNext()}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 text-white flex items-center justify-center transition-colors"
+              aria-label="Next slide"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 sm:h-5 sm:w-5"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </Carousel>
+
+        {/* Slide indicators */}
+        <div className="absolute bottom-4 sm:bottom-8 lg:bottom-12 left-1/2 -translate-x-1/2 sm:left-4 sm:translate-x-0 lg:left-12 flex items-center gap-2 z-10">
+          {heroPosts.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => api?.scrollTo(index)}
+              className={`transition-all duration-300 rounded-full ${
+                index === current
+                  ? 'w-8 h-2 bg-white'
+                  : 'w-2 h-2 bg-white/40 hover:bg-white/60'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

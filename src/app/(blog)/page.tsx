@@ -7,14 +7,14 @@ export const revalidate = 60;
 export default async function HomePage() {
   // Fetch all data server-side
   const [
-    featuredPost,
+    featuredPosts,
     recentPosts,
     categories,
     events,
     ads,
   ] = await Promise.all([
-    // Featured post
-    db.post.findFirst({
+    // 3 featured posts for hero carousel (fallback to recent if < 3 featured)
+    db.post.findMany({
       where: { status: 'PUBLISHED', isFeatured: true },
       include: {
         author: { select: { id: true, name: true, username: true, image: true } },
@@ -25,6 +25,7 @@ export default async function HomePage() {
         _count: { select: { comments: true, bookmarks: true } },
       },
       orderBy: { publishedAt: 'desc' },
+      take: 3,
     }),
     // Recent published posts
     db.post.findMany({
@@ -64,10 +65,20 @@ export default async function HomePage() {
     }),
   ]);
 
-  // If no featured post found, use the first recent post
-  const heroPost = featuredPost || recentPosts[0];
-  // Filter out hero post from grid
-  const gridPosts = recentPosts.filter((p) => p.id !== heroPost?.id);
+  // Build carousel slides: featured posts first, pad with recent if needed
+  const heroPosts = [...featuredPosts];
+  if (heroPosts.length < 3) {
+    const needed = 3 - heroPosts.length;
+    const fallback = recentPosts
+      .filter((p) => !heroPosts.some((h) => h.id === p.id))
+      .slice(0, needed);
+    heroPosts.push(...fallback);
+  }
+
+  // Grid posts = recent posts minus any that appear in the carousel
+  const gridPosts = recentPosts.filter(
+    (p) => !heroPosts.some((h) => h.id === p.id)
+  );
   // Trending posts for ticker (just title + slug)
   const trendingPosts = recentPosts.slice(0, 5).map((p) => ({
     id: p.id,
@@ -100,7 +111,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
       />
       <HomepageClient
-        heroPost={heroPost ? JSON.parse(JSON.stringify(heroPost)) : null}
+        heroPosts={heroPosts.map((p) => JSON.parse(JSON.stringify(p)))}
         gridPosts={JSON.parse(JSON.stringify(gridPosts))}
         categories={JSON.parse(JSON.stringify(categories))}
         events={JSON.parse(JSON.stringify(events))}
