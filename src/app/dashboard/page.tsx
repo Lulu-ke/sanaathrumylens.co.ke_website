@@ -180,7 +180,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         {isLoading
           ? Array.from({ length: statCards().length }).map((_, i) => (
               <Card key={i}>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       {(role === "EDITOR" || role === "SUPER_ADMIN" || role === "ADMIN") && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link href="/dashboard/posts?status=PENDING_REVIEW">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-amber-500">
               <CardContent className="p-4 flex items-center gap-3">
@@ -286,7 +286,7 @@ export default function DashboardPage() {
 
       {/* Moderator Quick Actions */}
       {role === "MODERATOR" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link href="/dashboard/comments?status=PENDING">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500">
               <CardContent className="p-4 flex items-center gap-3">
@@ -324,7 +324,7 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Posts */}
         <Card>
           <CardHeader>
@@ -342,11 +342,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : stats?.recentPosts && stats.recentPosts.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+              <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                 {stats.recentPosts.map((post) => (
                   <div
                     key={post.id}
-                    className="flex items-center justify-between py-2 hover:bg-muted/50 -mx-2 px-2 rounded-md transition-colors"
+                    className="flex items-center justify-between py-1.5 hover:bg-muted/50 -mx-2 px-2 rounded-md transition-colors gap-2"
                   >
                     <Link
                       href={role === "MODERATOR" ? `${publicSiteUrl}/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
@@ -354,14 +354,14 @@ export default function DashboardPage() {
                       rel={role === "MODERATOR" ? "noopener noreferrer" : undefined}
                       className="flex-1 min-w-0"
                     >
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{post.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          by {post.author.name} • {new Date(post.createdAt).toLocaleDateString()}
+                          by {post.author.name} · <span className="hidden sm:inline">{new Date(post.createdAt).toLocaleDateString()}</span><span className="sm:hidden">{new Date(post.createdAt).toLocaleDateString('en-KE', {month:'short', day:'numeric'})}</span>
                         </p>
                       </div>
                     </Link>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {getStatusBadge(post.status)}
                       {(role === "EDITOR" || role === "SUPER_ADMIN" || role === "ADMIN") && (
                         <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">

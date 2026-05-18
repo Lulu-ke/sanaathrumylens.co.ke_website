@@ -160,7 +160,7 @@ export function ReaderDashboardClient({ user, bookmarks, comments, readingLists:
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       {/* User Profile Header */}
       <div className="flex items-center gap-4 mb-8">
         <Avatar className="h-16 w-16">

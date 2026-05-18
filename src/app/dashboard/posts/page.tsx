@@ -189,7 +189,7 @@ function PostsContent() {
   const pagination = postsData?.pagination
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -263,156 +263,232 @@ function PostsContent() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[250px]">Title</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Author</TableHead>
-                    <TableHead>Categories</TableHead>
-                    <TableHead>Views</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {postsData?.posts?.map((post) => (
-                    <TableRow key={post.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+            <>
+              {/* Mobile: Card layout */}
+              <div className="space-y-3 sm:hidden">
+                {postsData?.posts?.map((post) => (
+                  <div key={post.id} className="p-3 rounded-lg border bg-card space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
                           {canViewOnly ? (
-                            <a
-                              href={`${publicSiteUrl}/post/${post.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium hover:text-primary transition-colors inline-flex items-center gap-1"
-                            >
+                            <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer" className="font-medium text-sm hover:text-primary transition-colors truncate inline-flex items-center gap-1">
                               {post.title}
-                              <ExternalLink className="size-3 text-muted-foreground" />
+                              <ExternalLink className="size-3 text-muted-foreground shrink-0" />
                             </a>
                           ) : (
-                            <Link
-                              href={`/dashboard/posts/${post.id}/edit`}
-                              className="font-medium hover:text-primary transition-colors"
-                            >
+                            <Link href={`/dashboard/posts/${post.id}/edit`} className="font-medium text-sm hover:text-primary transition-colors truncate">
                               {post.title}
                             </Link>
                           )}
                           {post.isCommunityVoice && (
-                            <Badge className="text-xs bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25 shrink-0">
-                              Community
-                            </Badge>
+                            <Badge className="text-[10px] px-1 py-0 h-4 bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 shrink-0">Community</Badge>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(post.status)}</TableCell>
-                      <TableCell className="text-muted-foreground">{post.author.name}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {post.categories.slice(0, 2).map((pc) => (
-                            <Badge key={pc.category.id} variant="outline" className="text-xs">
-                              {pc.category.name}
-                            </Badge>
-                          ))}
-                          {post.categories.length > 2 && (
-                            <Badge variant="outline" className="text-xs">+{post.categories.length - 2}</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="size-3" />
-                          {post.views}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(post.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Prominent Publish button for APPROVED posts */}
-                          {canPublishPost && post.status === "APPROVED" && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                              onClick={() => publishMutation.mutate(post.id)}
-                              disabled={publishMutation.isPending}
-                            >
-                              {publishMutation.isPending ? (
-                                <Loader2 className="size-3 animate-spin" />
-                              ) : (
-                                <Send className="size-3" />
-                              )}
-                              Publish
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          by {post.author.name} · {new Date(post.createdAt).toLocaleDateString('en-KE', {month:'short', day:'numeric'})}
+                        </p>
+                      </div>
+                      <div className="shrink-0">{getStatusBadge(post.status)}</div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-0.5"><Eye className="size-3" />{post.views}</span>
+                        {post.categories.length > 0 && (
+                          <span>{post.categories.slice(0,1).map(pc => pc.category.name).join('')}{post.categories.length > 1 ? ` +${post.categories.length-1}` : ''}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {canPublishPost && post.status === "APPROVED" && (
+                          <Button size="sm" variant="default" className="gap-1 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => publishMutation.mutate(post.id)} disabled={publishMutation.isPending}>
+                            {publishMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+                            Publish
+                          </Button>
+                        )}
+                        <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="gap-1 text-xs h-7">
+                            <Globe className="size-3" />View
+                          </Button>
+                        </a>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-7">
+                              <MoreHorizontal className="size-4" />
                             </Button>
-                          )}
-                          {/* View on Site — always visible */}
-                          <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
-                            <Button size="sm" variant="outline" className="gap-1 text-xs">
-                              <Globe className="size-3" />
-                              View
-                            </Button>
-                          </a>
-                          {/* More actions dropdown */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {canEditPost && (
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/posts/${post.id}/edit`}>
-                                    <Pencil className="mr-2 size-4" />
-                                    Edit
-                                  </Link>
-                                </DropdownMenuItem>
-                              )}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canEditPost && (
                               <DropdownMenuItem asChild>
-                                <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="mr-2 size-4" />
-                                  View on Site
-                                </a>
+                                <Link href={`/dashboard/posts/${post.id}/edit`}><Pencil className="mr-2 size-4" />Edit</Link>
                               </DropdownMenuItem>
-                              {canPublishPost && post.status === "APPROVED" && (
-                                <DropdownMenuItem
-                                  className="text-emerald-600"
-                                  onClick={() => publishMutation.mutate(post.id)}
-                                  disabled={publishMutation.isPending}
-                                >
-                                  <Send className="mr-2 size-4" />
-                                  Publish Now
-                                </DropdownMenuItem>
-                              )}
-                              {canDeletePost && (
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => setDeletePost(post)}
-                                >
-                                  <Trash2 className="mr-2 size-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!postsData?.posts || postsData.posts.length === 0) && (
+                            )}
+                            {canDeletePost && (
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeletePost(post)}>
+                                <Trash2 className="mr-2 size-4" />Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(!postsData?.posts || postsData.posts.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No posts found</p>
+                )}
+              </div>
+              {/* Desktop: Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        No posts found
-                      </TableCell>
+                      <TableHead className="min-w-[250px]">Title</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Author</TableHead>
+                      <TableHead>Categories</TableHead>
+                      <TableHead>Views</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {postsData?.posts?.map((post) => (
+                      <TableRow key={post.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {canViewOnly ? (
+                              <a
+                                href={`${publicSiteUrl}/post/${post.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium hover:text-primary transition-colors inline-flex items-center gap-1"
+                              >
+                                {post.title}
+                                <ExternalLink className="size-3 text-muted-foreground" />
+                              </a>
+                            ) : (
+                              <Link
+                                href={`/dashboard/posts/${post.id}/edit`}
+                                className="font-medium hover:text-primary transition-colors"
+                              >
+                                {post.title}
+                              </Link>
+                            )}
+                            {post.isCommunityVoice && (
+                              <Badge className="text-xs bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25 shrink-0">
+                                Community
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(post.status)}</TableCell>
+                        <TableCell className="text-muted-foreground">{post.author.name}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {post.categories.slice(0, 2).map((pc) => (
+                              <Badge key={pc.category.id} variant="outline" className="text-xs">
+                                {pc.category.name}
+                              </Badge>
+                            ))}
+                            {post.categories.length > 2 && (
+                              <Badge variant="outline" className="text-xs">+{post.categories.length - 2}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Eye className="size-3" />
+                            {post.views}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(post.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Prominent Publish button for APPROVED posts */}
+                            {canPublishPost && post.status === "APPROVED" && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => publishMutation.mutate(post.id)}
+                                disabled={publishMutation.isPending}
+                              >
+                                {publishMutation.isPending ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Send className="size-3" />
+                                )}
+                                Publish
+                              </Button>
+                            )}
+                            {/* View on Site — always visible */}
+                            <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                              <Button size="sm" variant="outline" className="gap-1 text-xs">
+                                <Globe className="size-3" />
+                                View
+                              </Button>
+                            </a>
+                            {/* More actions dropdown */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8">
+                                  <MoreHorizontal className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {canEditPost && (
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/posts/${post.id}/edit`}>
+                                      <Pencil className="mr-2 size-4" />
+                                      Edit
+                                    </Link>
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem asChild>
+                                  <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                                    <Eye className="mr-2 size-4" />
+                                    View on Site
+                                  </a>
+                                </DropdownMenuItem>
+                                {canPublishPost && post.status === "APPROVED" && (
+                                  <DropdownMenuItem
+                                    className="text-emerald-600"
+                                    onClick={() => publishMutation.mutate(post.id)}
+                                    disabled={publishMutation.isPending}
+                                  >
+                                    <Send className="mr-2 size-4" />
+                                    Publish Now
+                                  </DropdownMenuItem>
+                                )}
+                                {canDeletePost && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeletePost(post)}
+                                  >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!postsData?.posts || postsData.posts.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No posts found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )
         </CardContent>
       </Card>
 

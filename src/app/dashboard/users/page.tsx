@@ -232,7 +232,7 @@ function UsersContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -297,7 +297,44 @@ function UsersContent() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: Card layout */}
+              <div className="space-y-2 sm:hidden">
+                {usersData?.users?.map((user) => (
+                  <div key={user.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm truncate">{user.name}</span>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${getRoleBadgeColor(user.role)}`}>
+                          {user.role.replace("_", " ")}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">@{user.username} · <Badge variant={user.isActive ? "default" : "secondary"} className="text-[10px] h-4">{user.isActive ? "Active" : "Inactive"}</Badge></p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-8 shrink-0">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                          <UserCog className="mr-2 size-4" />Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteUser(user)}>
+                          <Trash2 className="mr-2 size-4" />Delete User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+                {(!usersData?.users || usersData.users.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No users found</p>
+                )}
+              </div>
+              {/* Desktop: Table */}
+              <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -358,8 +395,9 @@ function UsersContent() {
                   )}
                 </TableBody>
               </Table>
-            </div>
-          )}
+              </div>
+            </>
+          )
         </CardContent>
       </Card>
 

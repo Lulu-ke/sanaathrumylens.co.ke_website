@@ -216,7 +216,7 @@ export default function MediaPage() {
   const hasActiveUploads = activeUploads.length > 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Media Library</h1>
@@ -225,8 +225,7 @@ export default function MediaPage() {
       </div>
 
       {/* Upload Area */}
-      <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+      <div className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
           dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
         }`}
         onDrop={handleDrop}
@@ -317,7 +316,7 @@ export default function MediaPage() {
       )}
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input placeholder="Search media..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>

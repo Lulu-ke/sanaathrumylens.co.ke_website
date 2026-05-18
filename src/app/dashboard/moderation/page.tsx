@@ -115,7 +115,7 @@ export default function ModerationPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <Shield className="h-6 w-6 text-violet-500" />
@@ -127,56 +127,56 @@ export default function ModerationPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
-              <div className="bg-violet-50 dark:bg-violet-950/30 p-2 rounded-lg">
-                <Clock className="size-5 text-violet-600" />
+              <div className="bg-violet-50 dark:bg-violet-950/30 p-1.5 sm:p-2 rounded-lg">
+                <Clock className="size-4 sm:size-5 text-violet-600" />
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-bold">{pendingComments?.length || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Pending Comments</p>
+              <p className="text-lg sm:text-2xl font-bold">{pendingComments?.length || 0}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Pending</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
-              <div className="bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded-lg">
-                <CheckCircle2 className="size-5 text-emerald-600" />
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 p-1.5 sm:p-2 rounded-lg">
+                <CheckCircle2 className="size-4 sm:size-5 text-emerald-600" />
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-bold">{recentComments?.length || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Recent Comments</p>
+              <p className="text-lg sm:text-2xl font-bold">{recentComments?.length || 0}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Recent</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
-              <div className="bg-amber-50 dark:bg-amber-950/30 p-2 rounded-lg">
-                <Flag className="size-5 text-amber-600" />
+              <div className="bg-amber-50 dark:bg-amber-950/30 p-1.5 sm:p-2 rounded-lg">
+                <Flag className="size-4 sm:size-5 text-amber-600" />
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-bold">{pendingFlaggedCount}</p>
-              <p className="text-xs text-muted-foreground mt-1">Flagged Content</p>
+              <p className="text-lg sm:text-2xl font-bold">{pendingFlaggedCount}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Flagged</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
-              <div className="bg-sky-50 dark:bg-sky-950/30 p-2 rounded-lg">
-                <FileText className="size-5 text-sky-600" />
+              <div className="bg-sky-50 dark:bg-sky-950/30 p-1.5 sm:p-2 rounded-lg">
+                <FileText className="size-4 sm:size-5 text-sky-600" />
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-bold">{postsData?.posts?.length || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Recent Posts</p>
+              <p className="text-lg sm:text-2xl font-bold">{postsData?.posts?.length || 0}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Posts</p>
             </div>
           </CardContent>
         </Card>
@@ -227,25 +227,25 @@ export default function ModerationPage() {
                         {new Date(comment.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        className="gap-1 text-xs h-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                         disabled={moderateMutation.isPending}
                         onClick={() => moderateMutation.mutate({ commentId: comment.id, action: "APPROVE" })}
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <CheckCircle2 className="size-3" />
                         Approve
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1 text-destructive hover:bg-destructive/10"
+                        className="gap-1 text-xs h-7 text-destructive hover:bg-destructive/10"
                         disabled={moderateMutation.isPending}
                         onClick={() => moderateMutation.mutate({ commentId: comment.id, action: "REJECT" })}
                       >
-                        <XCircle className="h-3.5 w-3.5" />
+                        <XCircle className="size-3" />
                         Reject
                       </Button>
                     </div>
