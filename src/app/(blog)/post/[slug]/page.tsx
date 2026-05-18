@@ -69,6 +69,8 @@ export default async function PostPage({ params }: PostPageProps) {
       allowComments: true,
       isSponsored: true,
       isCommunityVoice: true,
+      isFeatured: true,
+      status: true,
       authorId: true,
       author: {
         select: { id: true, name: true, username: true, image: true, bio: true },
