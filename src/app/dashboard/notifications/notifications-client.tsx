@@ -122,26 +122,26 @@ export function NotificationsClient({ stats, recentNotifications }: Notification
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Smartphone className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.totalSubscriptions}</p>
+                <p className="text-xl sm:text-2xl font-bold">{stats.totalSubscriptions}</p>
                 <p className="text-sm text-muted-foreground">Active Subscriptions</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.uniqueSubscribers}</p>
+                <p className="text-xl sm:text-2xl font-bold">{stats.uniqueSubscribers}</p>
                 <p className="text-sm text-muted-foreground">Unique Subscribers</p>
               </div>
             </div>

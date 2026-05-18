@@ -270,7 +270,7 @@ export default function NewCampaignPage() {
         <Button variant="outline" onClick={() => router.push('/dashboard/campaigns')}>
           Cancel
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2" onClick={handleSaveDraft} disabled={isSaving}>
             <Save className="h-4 w-4" />
             Save Draft

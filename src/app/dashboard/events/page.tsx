@@ -259,7 +259,45 @@ function EventsContent() {
           ))}
         </div>
       ) : (
-        <Card>
+        <>
+        {/* Mobile: Card list */}
+        <div className="sm:hidden space-y-3">
+          {eventsData?.events?.map((event) => (
+            <div key={event.id} className="border rounded-lg p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{event.title}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="size-3" />
+                    {format(new Date(event.startDate), "PPP")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {getEventTypeBadge(event.eventType)}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground">
+                {event.city && <span className="flex items-center gap-0.5"><MapPin className="size-3" />{event.city}</span>}
+                <Badge variant={event.isActive ? "default" : "secondary"} className="text-[10px] h-5">
+                  {event.isActive ? "Active" : "Inactive"}
+                </Badge>
+                {event.isFree && <Badge variant="outline" className="text-[10px] h-5">Free</Badge>}
+              </div>
+              <div className="flex items-center gap-1 pt-1 border-t">
+                <Link href={`/dashboard/events/${event.id}/edit`}>
+                  <Button variant="ghost" size="sm" className="text-xs h-7 gap-1">
+                    <Pencil className="size-3" /> Edit
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" className="text-xs h-7 gap-1 text-destructive" onClick={() => setDeleteEvent(event)}>
+                  <Trash2 className="size-3" /> Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Desktop: Table */}
+        <Card className="hidden sm:block">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -309,6 +347,7 @@ function EventsContent() {
             </Table>
           </CardContent>
         </Card>
+        </>
       )}
 
       {(!eventsData?.events || eventsData.events.length === 0) && !isLoading && (

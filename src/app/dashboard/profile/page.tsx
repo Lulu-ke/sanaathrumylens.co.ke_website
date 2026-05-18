@@ -209,9 +209,9 @@ export default function ProfilePage() {
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="general" className="gap-2"><User className="size-4" /> General</TabsTrigger>
-          <TabsTrigger value="password" className="gap-2"><Lock className="size-4" /> Password</TabsTrigger>
-          <TabsTrigger value="security" className="gap-2"><Shield className="size-4" /> Security</TabsTrigger>
+          <TabsTrigger value="general" className="gap-2"><User className="size-4 hidden sm:inline" /> General</TabsTrigger>
+          <TabsTrigger value="password" className="gap-2"><Lock className="size-4 hidden sm:inline" /> Password</TabsTrigger>
+          <TabsTrigger value="security" className="gap-2"><Shield className="size-4 hidden sm:inline" /> Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">

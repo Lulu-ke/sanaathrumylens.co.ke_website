@@ -312,7 +312,69 @@ export default function ArtistsDashboardPage() {
           ))}
         </div>
       ) : (
-        <Card>
+        <>
+        {/* Mobile: Card list */}
+        <div className="sm:hidden space-y-3">
+          {artistsData?.artists?.map((artist) => (
+            <div key={artist.id} className="border rounded-lg p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="size-10 rounded-full overflow-hidden bg-muted shrink-0">
+                    {artist.image ? (
+                      <img src={artist.image} alt={artist.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-bold text-sm">
+                        {artist.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{artist.name}</p>
+                    {artist.stageName && <p className="text-xs text-muted-foreground truncate">&ldquo;{artist.stageName}&rdquo;</p>}
+                  </div>
+                </div>
+                {getArtistTypeBadge(artist.artistType)}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground">
+                {artist.location && <span className="flex items-center gap-0.5"><MapPin className="size-3" />{artist.location}</span>}
+                <Badge variant={artist.isActive ? "default" : "secondary"} className="text-[10px] h-5">
+                  {artist.isActive ? "Active" : "Inactive"}
+                </Badge>
+                {artist.isFeatured && (
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] h-5">
+                    <Star className="size-2.5 mr-0.5" /> Featured
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1 pt-1 border-t">
+                <Link href={`/artist/${artist.slug}`} target="_blank">
+                  <Button variant="ghost" size="sm" className="text-xs h-7 gap-1">
+                    <Eye className="size-3" /> View
+                  </Button>
+                </Link>
+                <Link href={`/dashboard/artists/${artist.id}/edit`}>
+                  <Button variant="ghost" size="sm" className="text-xs h-7 gap-1">
+                    <Pencil className="size-3" /> Edit
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 gap-1"
+                  onClick={() => toggleFeaturedMutation.mutate({ id: artist.id, isFeatured: !artist.isFeatured })}
+                >
+                  <Star className={`size-3 ${artist.isFeatured ? "fill-amber-400 text-amber-400" : ""}`} />
+                  {artist.isFeatured ? "Unfeature" : "Feature"}
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7 gap-1 text-destructive" onClick={() => setDeleteArtist(artist)}>
+                  <Trash2 className="size-3" /> Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Desktop: Table */}
+        <Card className="hidden sm:block">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -394,6 +456,7 @@ export default function ArtistsDashboardPage() {
             </Table>
           </CardContent>
         </Card>
+        </>
       )}
 
       {(!artistsData?.artists || artistsData.artists.length === 0) && !isLoading && (

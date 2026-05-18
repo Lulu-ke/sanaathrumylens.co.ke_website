@@ -403,7 +403,7 @@ export default function MediaPage() {
           {previewItem && (
             <div className="space-y-4">
               <img src={previewItem.url} alt={previewItem.altText || previewItem.originalName} className="w-full max-h-96 object-contain rounded-lg" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Size:</span> {formatSize(previewItem.size)}</div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Type:</span> {previewItem.mimeType.split('/')[1]?.toUpperCase()}

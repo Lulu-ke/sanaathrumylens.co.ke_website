@@ -382,7 +382,7 @@ export default function DashboardLayout({
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="h-8 w-8"
+                className="h-7 w-7 sm:h-8 sm:w-8"
               >
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -406,7 +406,7 @@ export default function DashboardLayout({
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 h-8 px-2">
+                  <Button variant="ghost" className="flex items-center gap-2 h-7 sm:h-8 px-2">
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={session?.user?.image || undefined} />
                       <AvatarFallback className="text-[10px] bg-primary/10 text-primary">

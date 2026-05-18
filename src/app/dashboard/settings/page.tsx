@@ -108,9 +108,9 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="general" className="gap-2"><Globe className="size-4" /> General</TabsTrigger>
-          <TabsTrigger value="social" className="gap-2"><Share2 className="size-4" /> Social</TabsTrigger>
-          <TabsTrigger value="email" className="gap-2"><Mail className="size-4" /> Email</TabsTrigger>
+          <TabsTrigger value="general" className="gap-2"><Globe className="size-4 hidden sm:inline" /> General</TabsTrigger>
+          <TabsTrigger value="social" className="gap-2"><Share2 className="size-4 hidden sm:inline" /> Social</TabsTrigger>
+          <TabsTrigger value="email" className="gap-2"><Mail className="size-4 hidden sm:inline" /> Email</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">

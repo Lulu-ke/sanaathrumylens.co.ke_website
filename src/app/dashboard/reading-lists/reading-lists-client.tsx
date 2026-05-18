@@ -313,7 +313,7 @@ export function ReadingListsClient({ initialLists, bookmarks }: ReadingListsClie
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
@@ -557,7 +557,7 @@ export function ReadingListsClient({ initialLists, bookmarks }: ReadingListsClie
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0"
                                   disabled={removingItemId === item.id}
                                   onClick={() => handleRemoveItem(list.id, item.id, item.post.id)}
                                   title="Remove from list"

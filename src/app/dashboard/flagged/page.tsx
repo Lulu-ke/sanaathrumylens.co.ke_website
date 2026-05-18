@@ -202,13 +202,15 @@ export default function FlaggedContentPage() {
 
       {/* Status Filter Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-        <TabsList>
+        <div className="overflow-x-auto">
+          <TabsList>
           <TabsTrigger value="ALL">All</TabsTrigger>
           <TabsTrigger value="PENDING">Pending</TabsTrigger>
           <TabsTrigger value="REVIEWED">Reviewed</TabsTrigger>
           <TabsTrigger value="DISMISSED">Dismissed</TabsTrigger>
           <TabsTrigger value="ACTION_TAKEN">Action Taken</TabsTrigger>
-        </TabsList>
+          </TabsList>
+        </div>
       </Tabs>
 
       {/* Flagged Content List */}
@@ -237,7 +239,7 @@ export default function FlaggedContentPage() {
             return (
               <Card key={flag.id} className="hover:bg-muted/30 transition-colors">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       {/* Flag header: type icon + reason + status */}
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -367,7 +369,7 @@ export default function FlaggedContentPage() {
 
                     {/* Action buttons */}
                     {flag.status === "PENDING" && (
-                      <div className="flex flex-col gap-2 shrink-0">
+                      <div className="flex flex-wrap gap-2 mt-2 sm:mt-0 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"

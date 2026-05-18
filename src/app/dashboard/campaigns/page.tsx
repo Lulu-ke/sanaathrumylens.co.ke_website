@@ -71,7 +71,7 @@ export default function CampaignsPage() {
           </h1>
           <p className="text-muted-foreground">Create and manage email newsletters</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Filter status" />

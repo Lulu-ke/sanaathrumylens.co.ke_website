@@ -238,7 +238,7 @@ function CommentsContent() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-emerald-600 hover:text-emerald-700 h-7 text-xs"
+                            className="hidden sm:flex gap-1 text-emerald-600 hover:text-emerald-700 h-7 text-xs"
                             onClick={() => moderateMutation.mutate({ id: comment.id, status: "APPROVED" })}
                             disabled={moderateMutation.isPending}
                           >
@@ -248,7 +248,7 @@ function CommentsContent() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-destructive hover:text-destructive h-7 text-xs"
+                            className="hidden sm:flex gap-1 text-destructive hover:text-destructive h-7 text-xs"
                             onClick={() => moderateMutation.mutate({ id: comment.id, status: "REJECTED" })}
                             disabled={moderateMutation.isPending}
                           >
@@ -288,6 +288,26 @@ function CommentsContent() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {comment.status === "PENDING" && (
+                            <>
+                              <DropdownMenuItem
+                                className="text-emerald-600 focus:text-emerald-700 sm:hidden"
+                                onClick={() => moderateMutation.mutate({ id: comment.id, status: "APPROVED" })}
+                                disabled={moderateMutation.isPending}
+                              >
+                                <CheckCircle2 className="mr-2 size-4" />
+                                Approve
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive sm:hidden"
+                                onClick={() => moderateMutation.mutate({ id: comment.id, status: "REJECTED" })}
+                                disabled={moderateMutation.isPending}
+                              >
+                                <XCircle className="mr-2 size-4" />
+                                Reject
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuItem
                             className="text-orange-600 focus:text-orange-700"
                             onClick={() => moderateMutation.mutate({ id: comment.id, status: "SPAM" })}

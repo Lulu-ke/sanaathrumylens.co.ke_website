@@ -157,6 +157,27 @@ export default function TagsPage() {
                 ))}
               </div>
 
+              {/* Mobile: Card list */}
+              <div className="sm:hidden space-y-2">
+                {tags?.map((tag) => (
+                  <div key={tag.id} className="flex items-center justify-between border rounded-lg p-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm">{tag.name}</p>
+                      <p className="text-xs text-muted-foreground">{tag.slug} · {tag._count?.posts || 0} posts</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => { setForm({ name: tag.name }); setEditingTag(tag) }}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteTag(tag)}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -186,6 +207,7 @@ export default function TagsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </>
           )}
         </CardContent>

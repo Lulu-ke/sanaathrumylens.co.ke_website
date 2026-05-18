@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-10 w-10 rounded-lg" />
                   </div>
@@ -180,14 +180,14 @@ export default function AnalyticsPage() {
             ))
           : statCards.map((card) => (
               <Card key={card.title} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className={`${card.bgColor} p-2 rounded-lg`}>
                       <card.icon className={`size-5 ${card.color}`} />
                     </div>
                   </div>
                   <div className="mt-3">
-                    <p className="text-2xl font-bold">
+                    <p className="text-xl sm:text-2xl font-bold">
                       {card.isTopPost ? (
                         <span className="flex items-center gap-1">
                           {card.value.toLocaleString()}
@@ -268,6 +268,27 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             ) : data?.topPosts && data.topPosts.length > 0 ? (
+              <>
+              {/* Mobile: Card list */}
+              <div className="sm:hidden space-y-2">
+                {data.topPosts.map((post, idx) => (
+                  <div key={post.id} className="flex items-center justify-between border rounded-lg p-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{idx + 1}.</span>
+                      <Link
+                        href={`/dashboard/posts/${post.id}/edit`}
+                        className="text-sm font-medium truncate hover:text-primary transition-colors"
+                      >
+                        {post.title}
+                      </Link>
+                    </div>
+                    <Badge variant="secondary" className="font-mono shrink-0 ml-2">
+                      {post.views.toLocaleString()}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden sm:block">
               <div className="max-h-96 overflow-y-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
@@ -303,6 +324,8 @@ export default function AnalyticsPage() {
                   </TableBody>
                 </Table>
               </div>
+              </div>
+              </>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No post view data yet

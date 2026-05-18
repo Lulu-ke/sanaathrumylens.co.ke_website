@@ -265,7 +265,53 @@ export default function AdsPage() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: Card view */}
+            <div className="sm:hidden space-y-3">
+              {adsData?.ads?.map((ad) => (
+                <div key={ad.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img src={ad.imageUrl} alt={ad.title} className="size-10 object-cover rounded shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{ad.title}</p>
+                        <p className="text-xs text-muted-foreground">{getPlacementLabel(ad.placement)}</p>
+                      </div>
+                    </div>
+                    {getStatusBadge(ad.status)}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{format(new Date(ad.startDate), "PP")}{ad.endDate ? ` – ${format(new Date(ad.endDate), "PP")}` : ''}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="flex items-center gap-0.5"><Eye className="size-3" />{ad.impressions}</span>
+                      <span className="flex items-center gap-0.5"><MousePointer className="size-3" />{ad.clicks}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 pt-1 border-t">
+                    <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => openEdit(ad)}>
+                      <Pencil className="size-3" /> Edit
+                    </Button>
+                    {ad.status === "ACTIVE" && (
+                      <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => updateMutation.mutate({ id: ad.id, data: { status: "PAUSED" } })}>
+                        <Pause className="size-3" /> Pause
+                      </Button>
+                    )}
+                    {ad.status === "PAUSED" && (
+                      <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => updateMutation.mutate({ id: ad.id, data: { status: "ACTIVE" } })}>
+                        <Play className="size-3" /> Resume
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="text-xs h-7 gap-1 text-destructive" onClick={() => setDeleteAd(ad)}>
+                      <Trash2 className="size-3" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {(!adsData?.ads || adsData.ads.length === 0) && (
+                <p className="text-center text-muted-foreground py-8">No ads yet</p>
+              )}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -340,6 +386,7 @@ export default function AdsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -361,7 +408,7 @@ export default function AdsPage() {
             </div>
             <div className="space-y-2">
               <Label>Ad Image</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://... or upload" className="flex-1" />
                 <label>
                   <Button variant="outline" size="icon" className="shrink-0" asChild disabled={uploadingAdImage}>
@@ -393,7 +440,7 @@ export default function AdsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start Date</Label>
                 <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />

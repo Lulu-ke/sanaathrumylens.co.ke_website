@@ -106,7 +106,7 @@ export default function SponsoredDashboardPage() {
           <p className="text-muted-foreground">Review and manage sponsored content submissions</p>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -194,7 +194,7 @@ export default function SponsoredDashboardPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex flex-wrap items-center gap-2 pt-2">
                           {(post.status === 'SPONSORED_REVIEW' || post.status === 'PENDING_REVIEW') && (
                             <>
                               <Button
