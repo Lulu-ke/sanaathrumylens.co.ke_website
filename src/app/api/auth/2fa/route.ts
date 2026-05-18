@@ -26,15 +26,12 @@ function checkRateLimit(key: string, maxAttempts: number = 5, windowMs: number =
   return true;
 }
 
-// POST: Verify 2FA OTP code
+// POST: Verify 2FA OTP code (works both for login flow and session-based enable flow)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await request.json();
+    const { code, email } = body;
 
-    const { code } = await request.json();
     if (!code) {
       return NextResponse.json(
         { error: "Verification code is required" },
@@ -43,12 +40,67 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting
-    const rateKey = `2fa_${session.user.id}`;
+    const rateKey = `2fa_${email || 'session'}`;
     if (!checkRateLimit(rateKey)) {
       return NextResponse.json(
         { error: "Too many attempts. Please try again later." },
         { status: 429 }
       );
+    }
+
+    // Case 1: Login 2FA flow — email provided, no session yet
+    if (email) {
+      const user = await db.user.findUnique({ where: { email } });
+
+      if (!user) {
+        return NextResponse.json({ error: "Invalid verification code" }, { status: 400 });
+      }
+
+      if (!user.twoFactorCode || !user.twoFactorExp) {
+        return NextResponse.json(
+          { error: "No verification code was sent. Please try signing in again." },
+          { status: 400 }
+        );
+      }
+
+      // Check if code expired
+      if (new Date() > user.twoFactorExp) {
+        await db.user.update({
+          where: { id: user.id },
+          data: { twoFactorCode: null, twoFactorExp: null },
+        });
+        return NextResponse.json(
+          { error: "Verification code has expired. Please try signing in again." },
+          { status: 400 }
+        );
+      }
+
+      // Check if code matches
+      if (user.twoFactorCode !== code) {
+        return NextResponse.json(
+          { error: "Invalid verification code" },
+          { status: 400 }
+        );
+      }
+
+      // Clear the code and sign in the user
+      await db.user.update({
+        where: { id: user.id },
+        data: { twoFactorCode: null, twoFactorExp: null },
+      });
+
+      // Return success with user info — client will call signIn again
+      return NextResponse.json({
+        message: "2FA verification successful",
+        twoFactorVerified: true,
+        email: user.email,
+      });
+    }
+
+    // Case 2: Session-based flow — enabling 2FA from profile settings
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await db.user.findUnique({
@@ -96,7 +148,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ message: "Verification successful", twoFactorEnabled: true });
+    return NextResponse.json({ message: "2FA enabled successfully", twoFactorEnabled: true });
   } catch (error) {
     console.error("2FA verification error:", error);
     return NextResponse.json(
@@ -106,7 +158,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: Enable 2FA — Generate and send verification code
+// PUT: Enable 2FA — Generate and send verification code (session-based)
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -135,20 +187,15 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // Check if SMTP is configured
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpConfigured = !!(smtpUser && smtpPass);
-
-    // Send code via email if SMTP configured
+    // Send code via email
     const emailSent = await sendOTPEmail(user.email, code);
 
     const response: { message: string; devCode?: string } = {
       message: "Verification code sent",
     };
 
-    // If SMTP not configured, return the code in response (dev mode)
-    if (!smtpConfigured || !emailSent) {
+    // If email not sent, return the code in response (dev mode)
+    if (!emailSent) {
       response.devCode = code;
     }
 

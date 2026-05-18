@@ -86,6 +86,7 @@ export function SignInForm() {
     setOtpLoading(true)
 
     try {
+      // Verify the 2FA code via API
       const res = await fetch("/api/auth/2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,7 +100,33 @@ export function SignInForm() {
         return
       }
 
-      window.location.href = fullCallbackUrl;
+      // 2FA code verified via API — now sign in with the code as a credential
+      // so the authorize function can validate it and skip sending a new OTP
+      const result = await signIn("credentials", {
+        email,
+        password,
+        twoFactorCode: otp,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError("Sign in failed after 2FA verification. Please try again.")
+        setRequires2FA(false)
+        setOtp("")
+      } else {
+        // Set role cookie and redirect
+        try {
+          const sessionRes = await fetch("/api/auth/session");
+          const sessionData = await sessionRes.json();
+          const role = sessionData?.user?.role || "READER";
+          if (role && role !== "READER") {
+            document.cookie = `x-user-role=${role}; path=/; domain=.sanaathrumylens.co.ke; max-age=86400; samesite=lax; secure`;
+          }
+        } catch {
+          // Cookie setting is best-effort
+        }
+        window.location.href = fullCallbackUrl;
+      }
     } catch {
       setError("Verification failed. Please try again.")
     } finally {
@@ -272,8 +299,11 @@ export function SignInForm() {
           Google
         </Button>
       </CardContent>
-      <CardFooter className="justify-center text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground transition-colors">
+      <CardFooter className="flex-col gap-2">
+        <Link href="/auth/signup" className="text-sm text-primary hover:underline">
+          Don&apos;t have an account? Sign Up
+        </Link>
+        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           Back to home
         </Link>
       </CardFooter>

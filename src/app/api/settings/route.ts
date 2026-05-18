@@ -14,9 +14,19 @@ const updateSettingsSchema = z.object({
   })),
 });
 
-// GET: Get all settings
+// GET: Get all settings — requires ADMIN+ authentication
 export async function GET() {
   try {
+    // Require authentication — settings may contain sensitive values
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.role) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!hasPermission(session.user.role, "ADMIN")) {
+      return NextResponse.json({ error: "Forbidden — ADMIN+ required" }, { status: 403 });
+    }
+
     const settings = await db.siteSetting.findMany({
       orderBy: { key: "asc" },
     });

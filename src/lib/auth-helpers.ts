@@ -1,6 +1,6 @@
 import { hash, compare } from "bcryptjs";
-import { createTransport } from "nodemailer";
 import { db } from "@/lib/db";
+import { sendOTPEmail as sendOTPViaEmailService } from "@/lib/email";
 
 // ============================================
 // ROLE HIERARCHY
@@ -75,54 +75,13 @@ export function generateOTP(): string {
 }
 
 /**
- * Send OTP email using nodemailer
+ * Send OTP email using the email service
  */
 export async function sendOTPEmail(
   email: string,
   code: string
 ): Promise<boolean> {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = process.env.SMTP_PORT;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-
-  // If SMTP not configured, log and return success for dev
-  if (!smtpUser || !smtpPass) {
-    console.log(`[DEV] OTP for ${email}: ${code}`);
-    return true;
-  }
-
-  try {
-    const transporter = createTransport({
-      host: smtpHost,
-      port: Number(smtpPort) || 587,
-      secure: Number(smtpPort) === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"Sanaa Through My Lens" <${smtpUser}>`,
-      to: email,
-      subject: "Your Verification Code - Sanaa Through My Lens",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a1a1a;">Sanaa Through My Lens</h2>
-          <p>Your verification code is:</p>
-          <div style="background: #f5f5f5; padding: 16px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 8px;">
-            ${code}
-          </div>
-          <p style="color: #666; font-size: 14px;">This code expires in 10 minutes. If you didn't request this, please ignore this email.</p>
-        </div>
-      `,
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to send OTP email:", error);
-    return false;
-  }
+  return sendOTPViaEmailService(email, code);
 }
 
 // ============================================

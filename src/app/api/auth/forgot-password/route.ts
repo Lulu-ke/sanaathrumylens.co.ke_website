@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/email";
 import { z } from "zod";
-import { createTransport } from "nodemailer";
 import crypto from "crypto";
 
 const forgotPasswordSchema = z.object({
@@ -37,47 +37,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Try to send email
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    // Try to send email via the email service
+    const emailSent = await sendPasswordResetEmail(email, token);
 
-    if (smtpUser && smtpPass) {
-      try {
-        const smtpHost = process.env.SMTP_HOST;
-        const smtpPort = process.env.SMTP_PORT;
-
-        const transporter = createTransport({
-          host: smtpHost,
-          port: Number(smtpPort) || 587,
-          secure: Number(smtpPort) === 465,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-        });
-
-        const resetUrl = `https://sanaathrumylens.co.ke/auth/reset-password?token=${token}`;
-
-        await transporter.sendMail({
-          from: `"Sanaa Through My Lens" <${smtpUser}>`,
-          to: email,
-          subject: "Password Reset - Sanaa Through My Lens",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1a1a1a;">Sanaa Through My Lens</h2>
-              <p>You requested a password reset. Click the link below to reset your password:</p>
-              <div style="margin: 24px 0; text-align: center;">
-                <a href="${resetUrl}" style="background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">Reset Password</a>
-              </div>
-              <p style="color: #666; font-size: 14px;">This link expires in 1 hour. If you didn't request this, please ignore this email.</p>
-              <p style="color: #666; font-size: 14px;">Or copy this URL: ${resetUrl}</p>
-            </div>
-          `,
-        });
-      } catch (emailError) {
-        console.error("Failed to send reset email:", emailError);
-      }
-    } else {
+    if (!emailSent) {
       // SMTP not configured — log token for dev
       console.log(`[DEV] Password reset token for ${email}: ${token}`);
       console.log(`[DEV] Reset URL: https://sanaathrumylens.co.ke/auth/reset-password?token=${token}`);

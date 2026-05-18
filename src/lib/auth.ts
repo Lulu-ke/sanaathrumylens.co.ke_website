@@ -11,6 +11,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        twoFactorCode: { label: "2FA Code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -36,6 +37,50 @@ export const authOptions: NextAuthOptions = {
 
         if (!isPasswordValid) {
           throw new Error("Invalid email or password");
+        }
+
+        // If 2FA is enabled, require OTP verification
+        if (user.twoFactorEnabled) {
+          // If a 2FA code is provided with the credentials, verify it
+          if (credentials.twoFactorCode) {
+            if (
+              !user.twoFactorCode ||
+              !user.twoFactorExp ||
+              user.twoFactorCode !== credentials.twoFactorCode
+            ) {
+              throw new Error("Invalid 2FA code");
+            }
+
+            if (new Date() > user.twoFactorExp) {
+              throw new Error("2FA code expired. Please try again.");
+            }
+
+            // Code is valid — clear it and proceed with login
+            await db.user.update({
+              where: { id: user.id },
+              data: { twoFactorCode: null, twoFactorExp: null },
+            });
+          } else {
+            // No 2FA code provided — generate and send one
+            const { generateOTP } = await import("@/lib/auth-helpers");
+            const { sendOTPEmail } = await import("@/lib/email");
+            const code = generateOTP();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+            await db.user.update({
+              where: { id: user.id },
+              data: { twoFactorCode: code, twoFactorExp: expiresAt },
+            });
+
+            // Send OTP email
+            const emailSent = await sendOTPEmail(user.email, code);
+            if (!emailSent) {
+              console.log(`[DEV] 2FA code for ${user.email}: ${code}`);
+            }
+
+            // Throw special error that the client will handle
+            throw new Error("2FA required");
+          }
         }
 
         return {
