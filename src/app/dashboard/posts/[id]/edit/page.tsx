@@ -17,6 +17,10 @@ import {
   RotateCcw,
   Rocket,
   Globe,
+  MoreVertical,
+  ThumbsUp,
+  ThumbsDown,
+  Upload,
 } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -38,6 +42,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -122,6 +133,9 @@ export default function EditPostPage() {
   const [showRevisions, setShowRevisions] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
 
+  // Track which specific action is loading
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
   // Draft recovery state
   const [draftRecovery, setDraftRecovery] = useState<OfflineDraft | null>(null)
   const [showRecoveryBanner, setShowRecoveryBanner] = useState(false)
@@ -195,7 +209,6 @@ export default function EditPostPage() {
       try {
         const draft = await getDraft(draftIdRef.current)
         if (draft && draft.data && Object.keys(draft.data).length > 0) {
-          // Only show recovery if the draft is newer than the post data
           const d = draft.data
           if (d.title || d.content || d.excerpt) {
             setDraftRecovery(draft)
@@ -301,6 +314,8 @@ export default function EditPostPage() {
       return
     }
 
+    const actionKey = `save-${status}`
+    setActionLoading(actionKey)
     setIsSaving(true)
     try {
       const body: Record<string, unknown> = {
@@ -350,6 +365,7 @@ export default function EditPostPage() {
       toast.error(err instanceof Error ? err.message : "Failed to save post")
     } finally {
       setIsSaving(false)
+      setActionLoading(null)
     }
   }
 
@@ -358,6 +374,8 @@ export default function EditPostPage() {
       toast.error("Cannot review posts while offline")
       return
     }
+    const actionKey = `review-${action}`
+    setActionLoading(actionKey)
     try {
       if (action === "approve_and_publish") {
         // Step 1: Approve the post
@@ -391,6 +409,8 @@ export default function EditPostPage() {
       }
     } catch {
       toast.error("Failed to review post")
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -399,6 +419,7 @@ export default function EditPostPage() {
       toast.error("Cannot publish while offline")
       return
     }
+    setActionLoading("publish")
     try {
       const res = await fetch(`/api/posts/${postId}`, {
         method: "PATCH",
@@ -413,6 +434,8 @@ export default function EditPostPage() {
       toast.success("Post published — now live on the site!")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to publish")
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -482,6 +505,58 @@ export default function EditPostPage() {
     return <Badge variant={info.variant}>{info.label}</Badge>
   }
 
+  // Determine which review actions are available
+  const reviewActions = canReview && post ? (() => {
+    const actions: { key: string; label: string; icon: React.ReactNode; action: () => void; className?: string; destructive?: boolean }[] = []
+    if (post.status === "PENDING_REVIEW") {
+      actions.push({
+        key: "approve_and_publish",
+        label: "Approve & Publish",
+        icon: <Rocket className="size-4" />,
+        action: () => handleReview("approve_and_publish"),
+        className: "text-emerald-600 focus:text-emerald-700",
+      })
+      actions.push({
+        key: "approve",
+        label: "Approve Only",
+        icon: <ThumbsUp className="size-4" />,
+        action: () => handleReview("approve"),
+        className: "text-emerald-600 focus:text-emerald-700",
+      })
+      actions.push({
+        key: "reject",
+        label: "Reject",
+        icon: <ThumbsDown className="size-4" />,
+        action: () => {
+          const reason = window.prompt("Reason for rejection:")
+          if (reason) {
+            setRejectionReason(reason)
+            handleReview("reject")
+          }
+        },
+        destructive: true,
+      })
+    }
+    if (post.status === "APPROVED") {
+      actions.push({
+        key: "publish",
+        label: "Publish Now",
+        icon: <Rocket className="size-4" />,
+        action: handlePublish,
+        className: "text-emerald-600 focus:text-emerald-700",
+      })
+    }
+    if (post.status === "PUBLISHED") {
+      actions.push({
+        key: "view",
+        label: "View on Site",
+        icon: <Globe className="size-4" />,
+        action: () => window.open(`https://sanaathrumylens.co.ke/post/${post.slug}`, "_blank"),
+      })
+    }
+    return actions
+  })() : []
+
   return (
     <div className="space-y-6">
       {/* Offline Banner */}
@@ -521,20 +596,21 @@ export default function EditPostPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
+        {/* Top row: back + title */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard/posts">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="size-4" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">Edit Post</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Edit Post</h1>
               {post && getStatusBadge(post.status)}
             </div>
             <div className="flex items-center gap-3 mt-0.5">
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground truncate">
                 by {post?.author.name}
               </p>
               <SaveStatusIndicator
@@ -545,106 +621,162 @@ export default function EditPostPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+
+        {/* Action bar — primary actions + kebab menu */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Primary actions: Save Draft + Submit */}
           <Button
             variant="outline"
-            onClick={() => setShowRevisions(true)}
-            className="gap-2"
-          >
-            <History className="size-4" />
-            Revisions
-          </Button>
-          <Button
-            variant="outline"
+            size="sm"
             onClick={() => handleSave("DRAFT")}
             disabled={isSaving}
+            className="gap-1.5"
           >
-            {isSaving ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+            {actionLoading === "save-DRAFT" ? (
+              <Loader2 className="size-3.5 animate-spin" />
             ) : !isOnline ? (
-              <CloudOff className="mr-2 size-4" />
+              <CloudOff className="size-3.5" />
             ) : (
-              <Save className="mr-2 size-4" />
+              <Save className="size-3.5" />
             )}
             {!isOnline ? "Save Offline" : "Save Draft"}
           </Button>
+
           <Button
+            size="sm"
             onClick={() => handleSave("PENDING_REVIEW")}
             disabled={isSaving || !isOnline}
             title={!isOnline ? "Cannot submit while offline" : undefined}
+            className="gap-1.5"
           >
-            {isSaving ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+            {actionLoading === "save-PENDING_REVIEW" ? (
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Send className="mr-2 size-4" />
+              <Send className="size-3.5" />
             )}
-            Submit for Review
+            Submit
           </Button>
-          {canReview && (
-            <>
-              {/* Post is pending review — show Approve & Publish, Approve, Reject */}
-              {post?.status === "PENDING_REVIEW" && (
-                <>
-                  <Button
-                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={() => handleReview("approve_and_publish")}
-                    disabled={!isOnline}
-                  >
-                    <Rocket className="size-4" />
-                    Approve & Publish
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gap-2 text-emerald-600 hover:text-emerald-700"
-                    onClick={() => handleReview("approve")}
-                    disabled={!isOnline}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Approve Only
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gap-2 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (!isOnline) {
-                        toast.error("Cannot reject posts while offline")
-                        return
-                      }
-                      const reason = window.prompt("Reason for rejection:")
-                      if (reason) {
-                        setRejectionReason(reason)
-                        handleReview("reject")
-                      }
-                    }}
-                    disabled={!isOnline}
-                  >
-                    <XCircle className="size-4" />
-                    Reject
-                  </Button>
-                </>
+
+          {/* Review actions for editors/admins — primary approve & publish if pending */}
+          {canReview && post?.status === "PENDING_REVIEW" && (
+            <Button
+              size="sm"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => handleReview("approve_and_publish")}
+              disabled={!isOnline || !!actionLoading}
+            >
+              {actionLoading === "review-approve_and_publish" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Rocket className="size-3.5" />
               )}
-              {/* Post is approved but not yet published — show Publish button */}
-              {post?.status === "APPROVED" && (
-                <Button
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={handlePublish}
-                  disabled={!isOnline}
-                >
-                  <Rocket className="size-4" />
-                  Publish Now
-                </Button>
-              )}
-            </>
+              <span className="hidden sm:inline">Approve & Publish</span>
+              <span className="sm:hidden">Approve</span>
+            </Button>
           )}
+
+          {canReview && post?.status === "APPROVED" && (
+            <Button
+              size="sm"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handlePublish}
+              disabled={!isOnline || !!actionLoading}
+            >
+              {actionLoading === "publish" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Rocket className="size-3.5" />
+              )}
+              Publish
+            </Button>
+          )}
+
+          {/* View on Site for published posts */}
+          {post?.status === "PUBLISHED" && (
+            <a
+              href={`https://sanaathrumylens.co.ke/post/${post.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+            >
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <Globe className="size-3.5" />
+                <span className="hidden sm:inline">View on Site</span>
+                <span className="sm:hidden">View</span>
+              </Button>
+            </a>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* More actions kebab menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="size-8 shrink-0">
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {/* Schedule */}
+              <DropdownMenuItem
+                onClick={() => {}}
+                disabled={!isOnline}
+                className="gap-2"
+                onSelect={(e) => {
+                  e.preventDefault()
+                  // Open the schedule popover — we'll trigger it via a separate mechanism
+                }}
+              >
+                <Calendar className="size-4" />
+                Schedule
+              </DropdownMenuItem>
+
+              {/* Revisions */}
+              <DropdownMenuItem
+                onClick={() => setShowRevisions(true)}
+                className="gap-2"
+              >
+                <History className="size-4" />
+                Revisions
+              </DropdownMenuItem>
+
+              {/* Separator before review actions */}
+              {reviewActions.length > 0 && (
+                <DropdownMenuSeparator />
+              )}
+
+              {/* Review actions for editors/admins */}
+              {reviewActions.map((ra) => (
+                <DropdownMenuItem
+                  key={ra.key}
+                  onClick={ra.action}
+                  disabled={!isOnline || !!actionLoading}
+                  className={`gap-2 ${ra.className || ""}`}
+                >
+                  {actionLoading === `review-${ra.key}` || actionLoading === ra.key ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    ra.icon
+                  )}
+                  {ra.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Schedule popover (separate from dropdown, triggered via a hidden button) */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="gap-2"
+                size="sm"
+                id="schedule-trigger"
+                className="gap-1.5 hidden"
                 disabled={!isOnline}
               >
-                <Calendar className="size-4" />
-                Schedule
+                <Calendar className="size-3.5" />
+                <span className="hidden sm:inline">Schedule</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -658,10 +790,13 @@ export default function EditPostPage() {
                 <div className="p-3 border-t">
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full gap-1.5"
                     onClick={() => handleSave("SCHEDULED")}
                     disabled={isSaving || !isOnline}
                   >
+                    {actionLoading === "save-SCHEDULED" ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : null}
                     Schedule for {format(scheduledAt, "PPP")}
                   </Button>
                 </div>
@@ -687,24 +822,24 @@ export default function EditPostPage() {
       {/* Status workflow banner */}
       {post && canReview && post.status !== "PUBLISHED" && (
         <Card className="border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-start gap-3">
               <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-md shrink-0 mt-0.5">
                 <Calendar className="size-4 text-amber-600" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                   Publishing Workflow
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {post.status === "PENDING_REVIEW" && (
-                    <>This post is awaiting your review. Use <strong>Approve &amp; Publish</strong> to make it live immediately, or <strong>Approve Only</strong> to approve without publishing (you can publish later).</>
+                    <>Awaiting your review. Use <strong>Approve &amp; Publish</strong> to make it live, or open the <strong>⋮</strong> menu for <strong>Approve Only</strong> / <strong>Reject</strong>.</>
                   )}
                   {post.status === "APPROVED" && (
-                    <>This post has been approved but is not yet live. Click <strong>Publish Now</strong> to make it visible on the public site.</>
+                    <>Approved but not yet live. Click <strong>Publish</strong> to make it visible on the public site.</>
                   )}
                   {post.status === "DRAFT" && (
-                    <>This post is a draft. The author needs to submit it for review before you can approve it.</>
+                    <>This is a draft. The author needs to submit it for review before you can approve it.</>
                   )}
                   {post.status === "REJECTED" && (
                     <>This post was rejected. The author can revise and resubmit it for review.</>
@@ -714,19 +849,6 @@ export default function EditPostPage() {
                   )}
                 </p>
               </div>
-              {post.status === "PUBLISHED" && (
-                <a
-                  href={`/post/${post.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                >
-                  <Button size="sm" variant="outline" className="gap-1.5">
-                    <Globe className="size-3.5" />
-                    View on Site
-                  </Button>
-                </a>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -736,7 +858,7 @@ export default function EditPostPage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-4 sm:p-6 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-base font-semibold">
                   Title

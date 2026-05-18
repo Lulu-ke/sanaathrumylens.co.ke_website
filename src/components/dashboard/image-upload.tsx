@@ -240,36 +240,36 @@ export function ImageUpload({
               (e.target as HTMLImageElement).src = '/placeholder-article.svg'
             }}
           />
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 sm:gap-2 p-2">
             <Button
               variant="secondary"
               size="sm"
-              className="gap-1.5"
+              className="gap-1 h-7 text-xs px-2 sm:h-8 sm:text-sm sm:px-3"
               onClick={() => inputRef.current?.click()}
               disabled={disabled}
             >
               <Upload className="size-3.5" />
-              Replace
+              <span className="hidden sm:inline">Replace</span>
             </Button>
             <Button
               variant="secondary"
               size="sm"
-              className="gap-1.5"
+              className="gap-1 h-7 text-xs px-2 sm:h-8 sm:text-sm sm:px-3"
               onClick={(e) => { e.stopPropagation(); setGalleryOpen(true) }}
               disabled={disabled}
             >
               <FolderOpen className="size-3.5" />
-              Gallery
+              <span className="hidden sm:inline">Gallery</span>
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              className="gap-1.5"
+              className="gap-1 h-7 text-xs px-2 sm:h-8 sm:text-sm sm:px-3"
               onClick={handleRemove}
               disabled={disabled}
             >
               <X className="size-3.5" />
-              Remove
+              <span className="hidden sm:inline">Remove</span>
             </Button>
           </div>
           {isSuccess && (
@@ -354,7 +354,7 @@ export function ImageUpload({
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 px-4 text-center" onClick={() => inputRef.current?.click()}>
+          <div className="flex flex-col items-center gap-2 px-4 text-center cursor-pointer" onClick={() => inputRef.current?.click()}>
             <ImageIcon className="size-8 text-muted-foreground/50" />
             <p className="text-sm font-medium text-muted-foreground">{hint}</p>
             <p className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP — max 10MB</p>
@@ -363,28 +363,28 @@ export function ImageUpload({
         )}
       </div>
 
-      {/* Action buttons below upload area */}
+      {/* Action buttons below upload area — stack on mobile, row on desktop */}
       {!isUploading && !isSuccess && !isError && (
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 gap-1.5"
+            className="gap-1.5 text-xs"
             onClick={() => inputRef.current?.click()}
             disabled={disabled}
           >
             <Upload className="size-3.5" />
-            Upload from Device
+            Upload
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 gap-1.5"
+            className="gap-1.5 text-xs"
             onClick={() => setGalleryOpen(true)}
             disabled={disabled}
           >
             <FolderOpen className="size-3.5" />
-            Choose from Gallery
+            Gallery
           </Button>
         </div>
       )}

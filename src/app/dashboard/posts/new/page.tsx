@@ -12,6 +12,7 @@ import {
   Loader2,
   CloudOff,
   RotateCcw,
+  MoreVertical,
 } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +34,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { TiptapEditor } from "@/components/editor/tiptap-editor"
 import { SaveStatusIndicator } from "@/components/editor/save-status-indicator"
@@ -74,6 +81,7 @@ export default function NewPostPage() {
   const [ogImage, setOgImage] = useState("")
   const [scheduledAt, setScheduledAt] = useState<Date | undefined>(undefined)
   const [isSaving, setIsSaving] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState("")
 
   // Draft recovery state
@@ -229,6 +237,8 @@ export default function NewPostPage() {
       return
     }
 
+    const actionKey = `save-${status}`
+    setActionLoading(actionKey)
     setIsSaving(true)
     try {
       const body: Record<string, unknown> = {
@@ -283,6 +293,7 @@ export default function NewPostPage() {
       toast.error(err instanceof Error ? err.message : "Failed to save post")
     } finally {
       setIsSaving(false)
+      setActionLoading(null)
     }
   }
 
@@ -359,17 +370,18 @@ export default function NewPostPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
+        {/* Top row: back + title */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard/posts">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="size-4" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">New Post</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">New Post</h1>
             <div className="flex items-center gap-3 mt-0.5">
-              <p className="text-muted-foreground">Create a new blog post</p>
+              <p className="text-sm text-muted-foreground">Create a new blog post</p>
               <SaveStatusIndicator
                 status={saveStatus}
                 lastSavedAt={lastSavedAt}
@@ -378,63 +390,74 @@ export default function NewPostPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+
+        {/* Action bar */}
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => handleSave("DRAFT")}
             disabled={isSaving}
+            className="gap-1.5"
           >
-            {isSaving ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+            {actionLoading === "save-DRAFT" ? (
+              <Loader2 className="size-3.5 animate-spin" />
             ) : !isOnline ? (
-              <CloudOff className="mr-2 size-4" />
+              <CloudOff className="size-3.5" />
             ) : (
-              <Save className="mr-2 size-4" />
+              <Save className="size-3.5" />
             )}
             {!isOnline ? "Save Offline" : "Save Draft"}
           </Button>
+
           <Button
+            size="sm"
             onClick={() => handleSave("PENDING_REVIEW")}
             disabled={isSaving || !isOnline}
             title={!isOnline ? "Cannot submit while offline" : undefined}
+            className="gap-1.5"
           >
-            {isSaving ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+            {actionLoading === "save-PENDING_REVIEW" ? (
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Send className="mr-2 size-4" />
+              <Send className="size-3.5" />
             )}
-            Submit for Review
+            Submit
           </Button>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* More actions: Schedule */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={!isOnline}
-              >
-                <Calendar className="size-4" />
-                Schedule
+              <Button variant="outline" size="icon" className="size-8 shrink-0" disabled={!isOnline}>
+                <MoreVertical className="size-4" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <CalendarComponent
-                mode="single"
-                selected={scheduledAt}
-                onSelect={setScheduledAt}
-                disabled={(date) => date < new Date()}
-              />
-              {scheduledAt && (
-                <div className="p-3 border-t">
+              <div className="p-3 space-y-3">
+                <p className="text-sm font-medium">Schedule Post</p>
+                <CalendarComponent
+                  mode="single"
+                  selected={scheduledAt}
+                  onSelect={setScheduledAt}
+                  disabled={(date) => date < new Date()}
+                />
+                {scheduledAt && (
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full gap-1.5"
                     onClick={() => handleSave("SCHEDULED")}
                     disabled={isSaving || !isOnline}
                   >
+                    {actionLoading === "save-SCHEDULED" ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : null}
                     Schedule for {format(scheduledAt, "PPP")}
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -444,7 +467,7 @@ export default function NewPostPage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-4 sm:p-6 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-base font-semibold">
                   Title
