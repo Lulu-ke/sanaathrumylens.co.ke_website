@@ -22,10 +22,23 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
+    const search = searchParams.get("search") || "";
     const skip = (page - 1) * limit;
+
+    // Build where clause for search
+    const where = search
+      ? {
+          OR: [
+            { originalName: { contains: search, mode: "insensitive" as const } },
+            { filename: { contains: search, mode: "insensitive" as const } },
+            { altText: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
 
     const [media, total] = await Promise.all([
       db.media.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
@@ -33,7 +46,7 @@ export async function GET(request: NextRequest) {
           uploader: { select: { id: true, name: true, username: true } },
         },
       }),
-      db.media.count(),
+      db.media.count({ where }),
     ]);
 
     return NextResponse.json({

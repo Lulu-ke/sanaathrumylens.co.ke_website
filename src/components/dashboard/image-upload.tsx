@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Upload, X, Loader2, ImageIcon, CheckCircle2 } from 'lucide-react'
+import { Upload, X, Loader2, ImageIcon, CheckCircle2, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
+import { MediaGalleryPicker } from '@/components/dashboard/media-gallery-picker'
 
 interface ImageUploadProps {
   /** Current image URL (controlled) */
@@ -49,6 +50,7 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [galleryOpen, setGalleryOpen] = useState(false)
   const [uploadState, setUploadState] = useState<UploadState>({
     status: 'idle',
     progress: 0,
@@ -199,6 +201,19 @@ export function ImageUpload({
     })
   }
 
+  const handleGallerySelect = (url: string) => {
+    onChange(url)
+    setUploadState({
+      status: 'idle',
+      progress: 0,
+      fileName: '',
+      error: null,
+      originalSize: null,
+      convertedSize: null,
+    })
+    toast.success('Image selected from gallery')
+  }
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
@@ -237,6 +252,16 @@ export function ImageUpload({
               Replace
             </Button>
             <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={(e) => { e.stopPropagation(); setGalleryOpen(true) }}
+              disabled={disabled}
+            >
+              <FolderOpen className="size-3.5" />
+              Gallery
+            </Button>
+            <Button
               variant="destructive"
               size="sm"
               className="gap-1.5"
@@ -261,6 +286,12 @@ export function ImageUpload({
           className="hidden"
           disabled={disabled}
         />
+        <MediaGalleryPicker
+          open={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          onSelect={handleGallerySelect}
+          currentUrl={value}
+        />
       </div>
     )
   }
@@ -276,12 +307,11 @@ export function ImageUpload({
           relative rounded-lg border-2 border-dashed transition-colors
           ${dragActive ? 'border-primary bg-primary/5' : isError ? 'border-destructive/50 bg-destructive/5' : 'border-muted-foreground/25 hover:border-primary/50'}
           ${aspectClass}
-          flex flex-col items-center justify-center cursor-pointer
+          flex flex-col items-center justify-center
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragActive(false)}
-        onClick={() => !isUploading && !disabled && inputRef.current?.click()}
       >
         {isUploading ? (
           <div className="flex flex-col items-center gap-3 px-4 w-full max-w-[240px]">
@@ -324,7 +354,7 @@ export function ImageUpload({
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 px-4 text-center">
+          <div className="flex flex-col items-center gap-2 px-4 text-center" onClick={() => inputRef.current?.click()}>
             <ImageIcon className="size-8 text-muted-foreground/50" />
             <p className="text-sm font-medium text-muted-foreground">{hint}</p>
             <p className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP — max 10MB</p>
@@ -332,6 +362,33 @@ export function ImageUpload({
           </div>
         )}
       </div>
+
+      {/* Action buttons below upload area */}
+      {!isUploading && !isSuccess && !isError && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+          >
+            <Upload className="size-3.5" />
+            Upload from Device
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={() => setGalleryOpen(true)}
+            disabled={disabled}
+          >
+            <FolderOpen className="size-3.5" />
+            Choose from Gallery
+          </Button>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
@@ -339,6 +396,12 @@ export function ImageUpload({
         onChange={handleFileChange}
         className="hidden"
         disabled={disabled || isUploading}
+      />
+      <MediaGalleryPicker
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        onSelect={handleGallerySelect}
+        currentUrl={value}
       />
     </div>
   )

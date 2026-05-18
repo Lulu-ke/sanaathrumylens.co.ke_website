@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useRef } from "react"
 import { Editor } from "@tiptap/react"
 import {
   Bold,
@@ -16,6 +17,7 @@ import {
   Quote,
   Link as LinkIcon,
   Image as ImageIcon,
+  FolderOpen,
   Youtube,
   AlignLeft,
   AlignCenter,
@@ -41,12 +43,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
+import { MediaGalleryPicker } from "@/components/dashboard/media-gallery-picker"
 
 interface EditorToolbarProps {
   editor: Editor | null
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
+  const [galleryOpen, setGalleryOpen] = useState(false)
+
   if (!editor) return null
 
   const addLink = () => {
@@ -56,7 +61,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     }
   }
 
-  const addImage = () => {
+  const addImageFromDevice = () => {
     const input = document.createElement("input")
     input.type = "file"
     input.accept = "image/*"
@@ -82,6 +87,10 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       }
     }
     input.click()
+  }
+
+  const addImageFromGallery = (url: string) => {
+    editor.chain().focus().setImage({ src: url }).run()
   }
 
   const addYoutube = () => {
@@ -322,11 +331,28 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Toggle
           size="sm"
           pressed={false}
-          onPressedChange={addImage}
+          onPressedChange={addImageFromDevice}
         >
           <ImageIcon className="size-4" />
         </Toggle>
       </ToolbarTooltip>
+      <ToolbarTooltip tip="Image from Gallery">
+        <Toggle
+          size="sm"
+          pressed={false}
+          onPressedChange={() => setGalleryOpen(true)}
+        >
+          <FolderOpen className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+
+      {/* Gallery Picker Dialog */}
+      <MediaGalleryPicker
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        onSelect={addImageFromGallery}
+        title="Insert Image from Gallery"
+      />
       <ToolbarTooltip tip="YouTube Embed">
         <Toggle
           size="sm"
