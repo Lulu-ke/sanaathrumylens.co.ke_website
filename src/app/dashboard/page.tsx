@@ -13,6 +13,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  Rocket,
+  ExternalLink,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +25,7 @@ interface DashboardStats {
   totalPosts: number
   publishedPosts: number
   pendingPosts: number
+  approvedPosts: number
   draftPosts: number
   totalComments: number
   pendingComments: number
@@ -30,7 +33,7 @@ interface DashboardStats {
   upcomingEvents: number
   totalUsers: number
   totalViews: number
-  recentPosts: { id: string; title: string; status: string; createdAt: string; author: { name: string } }[]
+  recentPosts: { id: string; title: string; slug: string; status: string; createdAt: string; author: { name: string } }[]
   recentComments: { id: string; content: string; createdAt: string; author: { name: string }; post: { title: string } }[]
 }
 
@@ -59,6 +62,11 @@ export default function DashboardPage() {
   })
 
   const pendingFlaggedCount = flaggedData?.counts?.find((c) => c.status === "PENDING")?._count?.id || 0
+
+  // Build the public site URL for viewing posts (handles subdomain routing)
+  const publicSiteUrl = typeof window !== 'undefined' && window.location.hostname.endsWith('.sanaathrumylens.co.ke')
+    ? `https://sanaathrumylens.co.ke`
+    : ''
 
   const statCards = () => {
     // Moderator-specific stats
@@ -118,9 +126,18 @@ export default function DashboardPage() {
         value: stats?.pendingPosts || 0,
         icon: Clock,
         description: "Awaiting review",
-        href: "/dashboard/posts",
+        href: "/dashboard/posts?status=PENDING_REVIEW",
         color: "text-orange-600",
         bgColor: "bg-orange-50 dark:bg-orange-950/30",
+      },
+      {
+        title: "Approved",
+        value: stats?.approvedPosts || 0,
+        icon: CheckCircle2,
+        description: stats?.approvedPosts ? "Ready to publish" : "None pending",
+        href: "/dashboard/posts?status=APPROVED",
+        color: "text-emerald-600",
+        bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
       },
       {
         title: "Comments",
@@ -128,17 +145,8 @@ export default function DashboardPage() {
         icon: MessageSquare,
         description: `${stats?.pendingComments || 0} pending`,
         href: "/dashboard/comments",
-        color: "text-emerald-600",
-        bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
-      },
-      {
-        title: "Events",
-        value: stats?.totalEvents || 0,
-        icon: Calendar,
-        description: `${stats?.upcomingEvents || 0} upcoming`,
-        href: "/dashboard/events",
-        color: "text-rose-600",
-        bgColor: "bg-rose-50 dark:bg-rose-950/30",
+        color: "text-violet-600",
+        bgColor: "bg-violet-50 dark:bg-violet-950/30",
       },
     ]
 
@@ -241,10 +249,23 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </Link>
+          {(stats?.approvedPosts || 0) > 0 && (
+            <Link href="/dashboard/posts?status=APPROVED">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-emerald-500">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Rocket className="size-5 text-emerald-500" />
+                  <div>
+                    <p className="font-medium text-sm">Publish Approved Posts</p>
+                    <p className="text-xs text-muted-foreground">{stats?.approvedPosts || 0} approved &amp; ready to go live</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
           <Link href="/dashboard/comments?status=PENDING">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-emerald-500">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500">
               <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle2 className="size-5 text-emerald-500" />
+                <CheckCircle2 className="size-5 text-violet-500" />
                 <div>
                   <p className="font-medium text-sm">Moderate Comments</p>
                   <p className="text-xs text-muted-foreground">{stats?.pendingComments || 0} comments pending</p>
@@ -326,20 +347,32 @@ export default function DashboardPage() {
             ) : stats?.recentPosts && stats.recentPosts.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
                 {stats.recentPosts.map((post) => (
-                  <Link
+                  <div
                     key={post.id}
-                    href={role === "MODERATOR" ? `/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
-                    target={role === "MODERATOR" ? "_blank" : undefined}
                     className="flex items-center justify-between py-2 hover:bg-muted/50 -mx-2 px-2 rounded-md transition-colors"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{post.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        by {post.author.name} • {new Date(post.createdAt).toLocaleDateString()}
-                      </p>
+                    <Link
+                      href={role === "MODERATOR" ? `${publicSiteUrl}/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
+                      target={role === "MODERATOR" ? "_blank" : undefined}
+                      rel={role === "MODERATOR" ? "noopener noreferrer" : undefined}
+                      className="flex-1 min-w-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{post.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          by {post.author.name} • {new Date(post.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {getStatusBadge(post.status)}
+                      {(role === "EDITOR" || role === "SUPER_ADMIN" || role === "ADMIN") && (
+                        <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                          <ExternalLink className="size-3" />
+                        </a>
+                      )}
                     </div>
-                    {getStatusBadge(post.status)}
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : (

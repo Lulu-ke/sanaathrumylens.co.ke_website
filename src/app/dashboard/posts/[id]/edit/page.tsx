@@ -15,6 +15,8 @@ import {
   History,
   CloudOff,
   RotateCcw,
+  Rocket,
+  Globe,
 } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -351,25 +353,66 @@ export default function EditPostPage() {
     }
   }
 
-  const handleReview = async (action: "approve" | "reject") => {
+  const handleReview = async (action: "approve" | "reject" | "approve_and_publish") => {
     if (!isOnline) {
       toast.error("Cannot review posts while offline")
       return
     }
     try {
-      const res = await fetch(`/api/posts/${postId}/review`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          reason: action === "reject" ? rejectionReason : undefined,
-        }),
-      })
-      if (!res.ok) throw new Error("Failed to review post")
-      queryClient.invalidateQueries({ queryKey: ["post", postId] })
-      toast.success(action === "approve" ? "Post approved" : "Post rejected")
+      if (action === "approve_and_publish") {
+        // Step 1: Approve the post
+        const reviewRes = await fetch(`/api/posts/${postId}/review`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "approve" }),
+        })
+        if (!reviewRes.ok) throw new Error("Failed to approve post")
+        // Step 2: Publish the post
+        const publishRes = await fetch(`/api/posts/${postId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "PUBLISHED" }),
+        })
+        if (!publishRes.ok) throw new Error("Failed to publish post")
+        queryClient.invalidateQueries({ queryKey: ["post", postId] })
+        toast.success("Post approved & published — now live on the site!")
+      } else {
+        const res = await fetch(`/api/posts/${postId}/review`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            reason: action === "reject" ? rejectionReason : undefined,
+          }),
+        })
+        if (!res.ok) throw new Error("Failed to review post")
+        queryClient.invalidateQueries({ queryKey: ["post", postId] })
+        toast.success(action === "approve" ? "Post approved" : "Post rejected")
+      }
     } catch {
       toast.error("Failed to review post")
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!isOnline) {
+      toast.error("Cannot publish while offline")
+      return
+    }
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PUBLISHED" }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to publish")
+      }
+      queryClient.invalidateQueries({ queryKey: ["post", postId] })
+      toast.success("Post published — now live on the site!")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish")
     }
   }
 
@@ -539,34 +582,58 @@ export default function EditPostPage() {
           </Button>
           {canReview && (
             <>
-              <Button
-                variant="outline"
-                className="gap-2 text-emerald-600 hover:text-emerald-700"
-                onClick={() => handleReview("approve")}
-                disabled={!isOnline}
-              >
-                <CheckCircle2 className="size-4" />
-                Approve
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive hover:text-destructive"
-                onClick={() => {
-                  if (!isOnline) {
-                    toast.error("Cannot reject posts while offline")
-                    return
-                  }
-                  const reason = window.prompt("Reason for rejection:")
-                  if (reason) {
-                    setRejectionReason(reason)
-                    handleReview("reject")
-                  }
-                }}
-                disabled={!isOnline}
-              >
-                <XCircle className="size-4" />
-                Reject
-              </Button>
+              {/* Post is pending review — show Approve & Publish, Approve, Reject */}
+              {post?.status === "PENDING_REVIEW" && (
+                <>
+                  <Button
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => handleReview("approve_and_publish")}
+                    disabled={!isOnline}
+                  >
+                    <Rocket className="size-4" />
+                    Approve & Publish
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2 text-emerald-600 hover:text-emerald-700"
+                    onClick={() => handleReview("approve")}
+                    disabled={!isOnline}
+                  >
+                    <CheckCircle2 className="size-4" />
+                    Approve Only
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (!isOnline) {
+                        toast.error("Cannot reject posts while offline")
+                        return
+                      }
+                      const reason = window.prompt("Reason for rejection:")
+                      if (reason) {
+                        setRejectionReason(reason)
+                        handleReview("reject")
+                      }
+                    }}
+                    disabled={!isOnline}
+                  >
+                    <XCircle className="size-4" />
+                    Reject
+                  </Button>
+                </>
+              )}
+              {/* Post is approved but not yet published — show Publish button */}
+              {post?.status === "APPROVED" && (
+                <Button
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={handlePublish}
+                  disabled={!isOnline}
+                >
+                  <Rocket className="size-4" />
+                  Publish Now
+                </Button>
+              )}
             </>
           )}
           <Popover>
@@ -613,6 +680,54 @@ export default function EditPostPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {post.rejectedReason}
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status workflow banner */}
+      {post && canReview && post.status !== "PUBLISHED" && (
+        <Card className="border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-md shrink-0 mt-0.5">
+                <Calendar className="size-4 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  Publishing Workflow
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {post.status === "PENDING_REVIEW" && (
+                    <>This post is awaiting your review. Use <strong>Approve &amp; Publish</strong> to make it live immediately, or <strong>Approve Only</strong> to approve without publishing (you can publish later).</>
+                  )}
+                  {post.status === "APPROVED" && (
+                    <>This post has been approved but is not yet live. Click <strong>Publish Now</strong> to make it visible on the public site.</>
+                  )}
+                  {post.status === "DRAFT" && (
+                    <>This post is a draft. The author needs to submit it for review before you can approve it.</>
+                  )}
+                  {post.status === "REJECTED" && (
+                    <>This post was rejected. The author can revise and resubmit it for review.</>
+                  )}
+                  {post.status === "SCHEDULED" && (
+                    <>This post is scheduled for automatic publishing at the set date and time.</>
+                  )}
+                </p>
+              </div>
+              {post.status === "PUBLISHED" && (
+                <a
+                  href={`/post/${post.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Globe className="size-3.5" />
+                    View on Site
+                  </Button>
+                </a>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

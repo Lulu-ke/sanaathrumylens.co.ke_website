@@ -21,6 +21,7 @@ export async function GET() {
       publishedPosts,
       draftPosts,
       pendingReviewPosts,
+      approvedPosts,
       totalComments,
       pendingComments,
       totalUsers,
@@ -34,6 +35,7 @@ export async function GET() {
       db.post.count({ where: { status: "PUBLISHED" } }),
       db.post.count({ where: { status: "DRAFT" } }),
       db.post.count({ where: { status: "PENDING_REVIEW" } }),
+      db.post.count({ where: { status: "APPROVED" } }),
       db.comment.count(),
       db.comment.count({ where: { status: "PENDING" } }),
       db.user.count({ where: { isActive: true } }),
@@ -91,11 +93,28 @@ export async function GET() {
     });
 
     return NextResponse.json({
+      // Flat properties for frontend compatibility
+      totalPosts,
+      publishedPosts,
+      draftPosts,
+      pendingPosts: pendingReviewPosts,
+      approvedPosts,
+      totalComments,
+      pendingComments,
+      totalUsers,
+      totalEvents,
+      upcomingEvents: upcomingEvents.length,
+      totalCategories,
+      totalTags,
+      totalSubscribers,
+      totalMedia,
+      // Nested counts object (legacy)
       counts: {
         totalPosts,
         publishedPosts,
         draftPosts,
         pendingReviewPosts,
+        approvedPosts,
         totalComments,
         pendingComments,
         totalUsers,

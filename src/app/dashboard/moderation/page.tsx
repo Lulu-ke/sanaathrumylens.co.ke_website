@@ -219,7 +219,7 @@ export default function ModerationPage() {
                         <span className="text-sm font-medium">{comment.author.name}</span>
                         <Badge variant="outline" className="text-[10px]">Pending</Badge>
                         <span className="text-xs text-muted-foreground">
-                          on <a href={`/post/${comment.post.slug}`} className="hover:text-primary transition-colors" target="_blank" rel="noopener noreferrer">{comment.post.title}</a>
+                          on <a href={typeof window !== 'undefined' && window.location.hostname.endsWith('.sanaathrumylens.co.ke') ? `https://sanaathrumylens.co.ke/post/${comment.post.slug}` : `/post/${comment.post.slug}`} className="hover:text-primary transition-colors" target="_blank" rel="noopener noreferrer">{comment.post.title}</a>
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-3">{comment.content}</p>
@@ -306,7 +306,7 @@ export default function ModerationPage() {
                         </span>
                       </div>
                       <a
-                        href={`/post/${post.slug}`}
+                        href={typeof window !== 'undefined' && window.location.hostname.endsWith('.sanaathrumylens.co.ke') ? `https://sanaathrumylens.co.ke/post/${post.slug}` : `/post/${post.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium hover:text-primary transition-colors inline-flex items-center gap-1"
@@ -329,7 +329,7 @@ export default function ModerationPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <a href={`/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                      <a href={typeof window !== 'undefined' && window.location.hostname.endsWith('.sanaathrumylens.co.ke') ? `https://sanaathrumylens.co.ke/post/${post.slug}` : `/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
                         <Button size="sm" variant="outline" className="gap-1">
                           <Eye className="h-3.5 w-3.5" />
                           View

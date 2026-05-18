@@ -14,6 +14,10 @@ import {
   Eye,
   Pencil,
   Loader2,
+  Globe,
+  Send,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -84,7 +88,7 @@ function PostsContent() {
   const router = useRouter()
 
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL")
   const [deletePost, setDeletePost] = useState<Post | null>(null)
 
   // Pagination from URL
@@ -97,7 +101,13 @@ function PostsContent() {
   const canCreatePost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
   const canEditPost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
   const canDeletePost = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(role)
+  const canPublishPost = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(role)
   const canViewOnly = isModerator
+
+  // Build the public site URL for viewing posts (handles subdomain routing)
+  const publicSiteUrl = typeof window !== 'undefined' && window.location.hostname.endsWith('.sanaathrumylens.co.ke')
+    ? `https://sanaathrumylens.co.ke`
+    : ''
 
   const { data: postsData, isLoading } = useQuery<PostsResponse>({
     queryKey: ["posts", search, statusFilter, currentPage, currentLimit],
@@ -126,6 +136,25 @@ function PostsContent() {
       queryClient.invalidateQueries({ queryKey: ["posts"] })
       setDeletePost(null)
       toast.success("Post deleted successfully")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const publishMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/posts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PUBLISHED" }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to publish post")
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] })
+      toast.success("Post published successfully — now visible on the public site")
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -252,13 +281,24 @@ function PostsContent() {
                     <TableRow key={post.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Link
-                            href={canViewOnly ? `/post/${post.slug}` : `/dashboard/posts/${post.id}/edit`}
-                            target={canViewOnly ? "_blank" : undefined}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {post.title}
-                          </Link>
+                          {canViewOnly ? (
+                            <a
+                              href={`${publicSiteUrl}/post/${post.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium hover:text-primary transition-colors inline-flex items-center gap-1"
+                            >
+                              {post.title}
+                              <ExternalLink className="size-3 text-muted-foreground" />
+                            </a>
+                          ) : (
+                            <Link
+                              href={`/dashboard/posts/${post.id}/edit`}
+                              className="font-medium hover:text-primary transition-colors"
+                            >
+                              {post.title}
+                            </Link>
+                          )}
                           {post.isCommunityVoice && (
                             <Badge className="text-xs bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/25 shrink-0">
                               Community
@@ -290,38 +330,75 @@ function PostsContent() {
                         {new Date(post.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <MoreHorizontal className="size-4" />
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Prominent Publish button for APPROVED posts */}
+                          {canPublishPost && post.status === "APPROVED" && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => publishMutation.mutate(post.id)}
+                              disabled={publishMutation.isPending}
+                            >
+                              {publishMutation.isPending ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Send className="size-3" />
+                              )}
+                              Publish
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {canEditPost && (
+                          )}
+                          {/* View on Site — always visible */}
+                          <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="outline" className="gap-1 text-xs">
+                              <Globe className="size-3" />
+                              View
+                            </Button>
+                          </a>
+                          {/* More actions dropdown */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {canEditPost && (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/dashboard/posts/${post.id}/edit`}>
+                                    <Pencil className="mr-2 size-4" />
+                                    Edit
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/posts/${post.id}/edit`}>
-                                  <Pencil className="mr-2 size-4" />
-                                  Edit
-                                </Link>
+                                <a href={`${publicSiteUrl}/post/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="mr-2 size-4" />
+                                  View on Site
+                                </a>
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem asChild>
-                              <Link href={`/post/${post.slug}`} target="_blank">
-                                <Eye className="mr-2 size-4" />
-                                View on Site
-                              </Link>
-                            </DropdownMenuItem>
-                            {canDeletePost && (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => setDeletePost(post)}
-                              >
-                                <Trash2 className="mr-2 size-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {canPublishPost && post.status === "APPROVED" && (
+                                <DropdownMenuItem
+                                  className="text-emerald-600"
+                                  onClick={() => publishMutation.mutate(post.id)}
+                                  disabled={publishMutation.isPending}
+                                >
+                                  <Send className="mr-2 size-4" />
+                                  Publish Now
+                                </DropdownMenuItem>
+                              )}
+                              {canDeletePost && (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setDeletePost(post)}
+                                >
+                                  <Trash2 className="mr-2 size-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
