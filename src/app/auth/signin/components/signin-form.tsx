@@ -78,6 +78,9 @@ export function SignInForm() {
       const role = sessionData?.user?.role || "READER";
 
       // Set x-user-role cookie for subdomain middleware
+      // Always clear any stale role cookie first, then set new one for non-readers
+      document.cookie = "x-user-role=; path=/; domain=.sanaathrumylens.co.ke; max-age=0; samesite=lax; secure"
+      document.cookie = "x-user-role=; path=/; max-age=0"
       if (role && role !== "READER") {
         document.cookie = `x-user-role=${role}; path=/; domain=.sanaathrumylens.co.ke; max-age=86400; samesite=lax; secure`;
       }

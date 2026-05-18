@@ -93,6 +93,10 @@ function PostsContent() {
 
   const role = (session?.user?.role as string) || "AUTHOR"
   const isAuthor = role === "AUTHOR"
+  const isModerator = role === "MODERATOR"
+  const canCreatePost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
+  const canEditPost = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR"].includes(role)
+  const canDeletePost = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(role)
 
   const { data: postsData, isLoading } = useQuery<PostsResponse>({
     queryKey: ["posts", search, statusFilter, currentPage, currentLimit],
@@ -160,18 +164,20 @@ function PostsContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {isAuthor ? "My Posts" : "Posts"}
+            {isAuthor ? "My Posts" : isModerator ? "Posts Overview" : "Posts"}
           </h1>
           <p className="text-muted-foreground">
-            {isAuthor ? "Manage your blog posts" : "Manage all blog posts"}
+            {isAuthor ? "Manage your blog posts" : isModerator ? "View published and pending posts" : "Manage all blog posts"}
           </p>
         </div>
-        <Link href="/dashboard/posts/new">
-          <Button className="gap-2">
-            <Plus className="size-4" />
-            New Post
-          </Button>
-        </Link>
+        {canCreatePost && (
+          <Link href="/dashboard/posts/new">
+            <Button className="gap-2">
+              <Plus className="size-4" />
+              New Post
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
@@ -295,13 +301,21 @@ function PostsContent() {
                                 Edit
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => setDeletePost(post)}
-                            >
-                              <Trash2 className="mr-2 size-4" />
-                              Delete
+                            <DropdownMenuItem asChild>
+                              <Link href={`/post/${post.slug}`} target="_blank">
+                                <Eye className="mr-2 size-4" />
+                                View on Site
+                              </Link>
                             </DropdownMenuItem>
+                            {canDeletePost && (
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setDeletePost(post)}
+                              >
+                                <Trash2 className="mr-2 size-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

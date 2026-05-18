@@ -40,6 +40,8 @@ model User {
   notifications      Notification[]
   uploadedMedia      Media[]
   pushSubscriptions  PushSubscription[]
+  reportedContent    FlaggedContent[]  @relation("ReportedContent")
+  reviewedFlags      FlaggedContent[]  @relation("ReviewedFlags")
 
   @@index([email])
   @@index([role])
@@ -563,4 +565,31 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ============================================
+// FLAGGED CONTENT
+// ============================================
+
+model FlaggedContent {
+  id            String   @id @default(cuid())
+  contentType   String   // COMMENT, POST
+  contentId     String   // ID of the flagged comment or post
+  reason        String   // SPAM, HARASSMENT, HATE_SPEECH, MISINFORMATION, INAPPROPRIATE, OTHER
+  description   String?  // Optional details from the reporter
+  status        String   @default("PENDING")  // PENDING, REVIEWED, DISMISSED, ACTION_TAKEN
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+  reviewNotes   String?
+
+  reporterId    String
+  reporter      User     @relation("ReportedContent", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  reviewedById  String?
+  reviewedBy    User?    @relation("ReviewedFlags", fields: [reviewedById], references: [id])
+
+  @@index([contentType, contentId])
+  @@index([status])
+  @@index([reporterId])
+  @@index([createdAt])
 }

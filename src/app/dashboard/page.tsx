@@ -48,6 +48,48 @@ export default function DashboardPage() {
   })
 
   const statCards = () => {
+    // Moderator-specific stats
+    if (role === "MODERATOR") {
+      return [
+        {
+          title: "Pending Comments",
+          value: stats?.pendingComments || 0,
+          icon: MessageSquare,
+          description: "Awaiting review",
+          href: "/dashboard/comments?status=PENDING",
+          color: "text-violet-600",
+          bgColor: "bg-violet-50 dark:bg-violet-950/30",
+        },
+        {
+          title: "Total Comments",
+          value: stats?.totalComments || 0,
+          icon: CheckCircle2,
+          description: "All comments",
+          href: "/dashboard/comments",
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+        },
+        {
+          title: "Published Posts",
+          value: stats?.publishedPosts || 0,
+          icon: FileText,
+          description: "Active content",
+          href: "/dashboard/moderation",
+          color: "text-amber-600",
+          bgColor: "bg-amber-50 dark:bg-amber-950/30",
+        },
+        {
+          title: "Flagged Content",
+          value: 0,
+          icon: Clock,
+          description: "Needs attention",
+          href: "/dashboard/flagged",
+          color: "text-orange-600",
+          bgColor: "bg-orange-50 dark:bg-orange-950/30",
+        },
+      ]
+    }
+
     const cards = [
       {
         title: "Total Posts",
@@ -213,7 +255,7 @@ export default function DashboardPage() {
 
       {/* Moderator Quick Actions */}
       {role === "MODERATOR" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/dashboard/comments?status=PENDING">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500">
               <CardContent className="p-4 flex items-center gap-3">
@@ -221,6 +263,17 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium text-sm">Review Pending Comments</p>
                   <p className="text-xs text-muted-foreground">{stats?.pendingComments || 0} comments awaiting moderation</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/flagged">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-amber-500">
+              <CardContent className="p-4 flex items-center gap-3">
+                <AlertCircle className="size-5 text-amber-500" />
+                <div>
+                  <p className="font-medium text-sm">Flagged Content</p>
+                  <p className="text-xs text-muted-foreground">Review content reported by the community</p>
                 </div>
               </CardContent>
             </Card>

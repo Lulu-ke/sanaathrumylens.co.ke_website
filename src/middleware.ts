@@ -104,6 +104,7 @@ const apiRoleRequirements: Record<string, string> = {
   "/api/reading-lists": "READER",
   "/api/comments": "READER",
   "/api/community": "READER",
+  "/api/flagged": "READER",
 };
 
 // ============================================
@@ -199,13 +200,13 @@ function buildBaseDomainUrl(pathname: string, request: NextRequest): URL {
  * 2. Fall back to next-auth/jwt getToken() for encrypted JWE tokens
  * 3. Last resort: try plain JWT parsing
  */
-async function getUserRole(request: NextRequest): Promise<{ sessionToken: string | null; role: string }> {
+async function getUserRole(request: NextRequest): Promise<{ sessionToken: string | null; role: string; noSession?: boolean }> {
   const sessionToken =
     request.cookies.get("next-auth.session-token")?.value ||
     request.cookies.get("__Secure-next-auth.session-token")?.value;
 
   if (!sessionToken) {
-    return { sessionToken: null, role: "READER" };
+    return { sessionToken: null, role: "READER", noSession: true };
   }
 
   // Method 1: Check custom role cookie (set by our /api/auth/session wrapper)
@@ -256,7 +257,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { sessionToken, role: userRole } = await getUserRole(request);
+  const { sessionToken, role: userRole, noSession } = await getUserRole(request);
+
+  // If there's no session but a stale x-user-role cookie exists, clear it
+  const shouldClearStaleCookie = noSession && request.cookies.get("x-user-role")?.value;
 
   // Whenever we have a session token and a known non-READER role,
   // set the x-user-role cookie so subdomain middleware can read it.
@@ -492,7 +496,7 @@ export async function middleware(request: NextRequest) {
         const correctSubdomain = getSubdomainForRole(userRole);
         if (correctSubdomain) {
           const redirectUrl = buildSubdomainUrl(correctSubdomain.subdomain, pathname, request);
-          return addRoleCookie(NextResponse.redirect(redirectUrl), shouldSetRoleCookie, userRole);
+          return addRoleCookie(NextResponse.redirect(redirectUrl), shouldSetRoleCookie, userRole, shouldClearStaleCookie);
         }
       }
       // On localhost or other domains, fall through to normal dashboard access
@@ -508,20 +512,31 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole);
+    return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole, shouldClearStaleCookie);
   }
 
   // All other routes (public blog, etc.) — pass through
-  return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole);
+  return addRoleCookie(NextResponse.next(), shouldSetRoleCookie, userRole, shouldClearStaleCookie);
 }
 
 /**
  * Add the x-user-role cookie to the response if needed.
  * This ensures subdomain middleware can read the user's role
  * even when getToken() can't decrypt JWE tokens in Edge runtime.
+ * Also clears stale x-user-role cookies when there's no session.
  */
-function addRoleCookie(response: NextResponse, shouldSet: boolean, role: string): NextResponse {
-  if (shouldSet) {
+function addRoleCookie(response: NextResponse, shouldSet: boolean, role: string, shouldClear?: boolean): NextResponse {
+  if (shouldClear) {
+    // Clear stale role cookie — user has no active session
+    response.cookies.set("x-user-role", "", {
+      path: "/",
+      domain: `.${ROOT_DOMAIN}`,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      maxAge: 0,
+    });
+  } else if (shouldSet) {
     response.cookies.set("x-user-role", role, {
       path: "/",
       domain: `.${ROOT_DOMAIN}`,

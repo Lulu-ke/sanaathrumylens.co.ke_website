@@ -6,6 +6,7 @@ import { MessageCircle, Reply, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FlagCommentButton } from '@/components/blog/flag-comment-button';
 
 interface Comment {
   id: string;
@@ -247,15 +248,18 @@ function CommentItem({
             </span>
           </div>
           <p className="text-sm mt-1 leading-relaxed">{comment.content}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-primary mt-1"
-            onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-          >
-            <Reply className="h-3 w-3 mr-1" />
-            Reply
-          </Button>
+          <div className="flex items-center gap-1 mt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+              onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+            >
+              <Reply className="h-3 w-3 mr-1" />
+              Reply
+            </Button>
+            <FlagCommentButton commentId={comment.id} />
+          </div>
 
           {/* Reply form */}
           {replyTo === comment.id && (
@@ -317,6 +321,9 @@ function CommentItem({
                       </span>
                     </div>
                     <p className="text-sm mt-0.5 leading-relaxed">{reply.content}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <FlagCommentButton commentId={reply.id} />
+                    </div>
                   </div>
                 </div>
               ))}

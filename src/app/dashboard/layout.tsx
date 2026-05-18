@@ -32,6 +32,7 @@ import {
   BookMarked,
   ExternalLink,
   Shield,
+  Flag,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState, useMemo } from "react"
@@ -147,7 +148,7 @@ const roleNavItems: Record<string, { label: string; href: string; icon: React.El
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Comments", href: "/dashboard/comments", icon: MessageSquare },
     { label: "Moderation", href: "/dashboard/moderation", icon: Shield },
-    { label: "Posts", href: "/dashboard/posts", icon: FileText },
+    { label: "Flagged", href: "/dashboard/flagged", icon: Flag },
     { label: "Profile", href: "/dashboard/profile", icon: User },
   ],
   READER: [
@@ -428,7 +429,13 @@ export default function DashboardLayout({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    onClick={() => {
+                      // Clear the custom x-user-role cookie before signing out
+                      // to prevent stale role cookies from redirecting users to wrong subdomains
+                      document.cookie = "x-user-role=; path=/; domain=.sanaathrumylens.co.ke; max-age=0; samesite=lax; secure"
+                      document.cookie = "x-user-role=; path=/; max-age=0"
+                      signOut({ callbackUrl: "/auth/signin" })
+                    }}
                     className="text-destructive focus:text-destructive cursor-pointer"
                   >
                     <LogOut className="mr-2 h-4 w-4" />

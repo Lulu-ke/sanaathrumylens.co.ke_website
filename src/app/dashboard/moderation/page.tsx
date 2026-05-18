@@ -1,6 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
+import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Shield,
@@ -48,6 +49,17 @@ export default function ModerationPage() {
       return data.comments || []
     },
   })
+
+  const { data: flaggedData } = useQuery<{ counts: { status: string; _count: { id: number } }[] }>({
+    queryKey: ["moderation", "flagged-counts"],
+    queryFn: async () => {
+      const res = await fetch("/api/flagged")
+      if (!res.ok) throw new Error("Failed to fetch")
+      return res.json()
+    },
+  })
+
+  const pendingFlaggedCount = flaggedData?.counts?.find((c) => c.status === "PENDING")?._count?.id || 0
 
   const moderateMutation = useMutation({
     mutationFn: async ({ commentId, action }: { commentId: string; action: "APPROVE" | "REJECT" }) => {
@@ -114,7 +126,7 @@ export default function ModerationPage() {
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{pendingFlaggedCount}</p>
               <p className="text-xs text-muted-foreground mt-1">Flagged Content</p>
             </div>
           </CardContent>
@@ -215,22 +227,28 @@ export default function ModerationPage() {
         </CardContent>
       </Card>
 
-      {/* Flagged Content (Future) */}
+      {/* Flagged Content */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Flag className="h-5 w-5 text-amber-500" />
             Flagged Content
           </CardTitle>
-          <CardDescription>Content reported by the community for review</CardDescription>
+          <CardDescription>Flagged content is reviewed on the dedicated Flagged Content page</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <Shield className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="font-medium text-muted-foreground">No flagged content</p>
+            <p className="font-medium text-muted-foreground">Review flagged content</p>
             <p className="text-sm text-muted-foreground mt-1">
-              When readers flag comments or content, they&apos;ll appear here for your review
+              When readers flag comments or content, they&apos;ll appear on the Flagged Content page for your review
             </p>
+            <Link href="/dashboard/flagged">
+              <Button className="mt-4 gap-1.5">
+                <Flag className="h-4 w-4" />
+                View Flagged Content
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
