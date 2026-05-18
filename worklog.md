@@ -53,3 +53,25 @@ Stage Summary:
 - Editor dashboard now properly reflects editorial workflow with Approved posts count
 - Stats API now returns flat properties + approvedPosts count
 - Image upload progress and WebP conversion were already implemented in previous session
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Ensure post images render on public website and all published posts are showing
+
+Work Log:
+- Discovered all 3 published posts had NO featured images (featuredImage: null)
+- Generated 3 AI images for each post (Nairobi galleries, Pumzi sci-fi film, Gengetone music)
+- Uploaded all 3 images to CDN (cdn.sanaathrumylens.co.ke)
+- Updated local SQLite DB and production MySQL DB with image URLs
+- Production had 4 published posts (including "Lamu Cultural Festival" which already had an image)
+- Found that pages used SSG with generateStaticParams but NO ISR revalidation
+- Added revalidate = 60 to all dynamic blog pages (homepage, post detail, category, tag, artist, event, author, reading list)
+- This means the site now auto-refreshes cached pages every 60 seconds when data changes
+
+Stage Summary:
+- All 4 published posts now have featured images on production
+- Homepage renders 54 CDN image references through Next.js optimization
+- All 4 post titles (Gengetone, Nairobi, Pumzi, Lamu) confirmed visible on homepage
+- ISR (60s) added so content/image changes propagate within 1 minute without redeploy
+- Post detail pages confirmed rendering images correctly
