@@ -28,3 +28,28 @@ Stage Summary:
 - Posts page is read-only for moderators
 - Complete flagged content system: model, API, dashboard page, report button on comments
 - All changes deployed via GitHub push to Vercel
+---
+Task ID: 1-6
+Agent: Main Agent
+Task: Fix moderator/editor post links, Approve & Publish workflow, subdomain routing, editor dashboard audit
+
+Work Log:
+- Investigated all relevant files: posts page, edit page, moderation hub, dashboard, layout, stats API
+- Discovered root cause: subdomain routing causes relative links (/post/slug) to resolve to moderator.domain.co.ke/post/slug instead of sanaathrumylens.co.ke/post/slug
+- Fixed all post links to use absolute URLs when on a subdomain (checks window.location.hostname)
+- Added prominent "View on Site" and "Publish" inline buttons in posts list (not hidden in dropdown)
+- Added "Approve & Publish" button on edit page for PENDING_REVIEW posts (approves + publishes in one click)
+- Added "Publish Now" button on edit page for APPROVED posts
+- Added publishing workflow status banner explaining the APPROVED vs PUBLISHED gap
+- Fixed dashboard stats API to include approvedPosts count and flat properties for frontend compatibility
+- Updated editor dashboard: stat cards now show Total Posts, Pending Reviews, Approved, Comments
+- Added "Publish Approved Posts" quick action for editors (shows only when approved posts exist)
+- Fixed status filter to read from URL params (so ?status=PENDING_REVIEW works from dashboard links)
+- Fixed moderation hub and dashboard recent posts links to use absolute URLs
+
+Stage Summary:
+- All post links on moderator/editor dashboards now correctly point to the public site
+- The approval-to-publish gap is closed with clear UI: "Approve & Publish" and "Publish Now" buttons
+- Editor dashboard now properly reflects editorial workflow with Approved posts count
+- Stats API now returns flat properties + approvedPosts count
+- Image upload progress and WebP conversion were already implemented in previous session
