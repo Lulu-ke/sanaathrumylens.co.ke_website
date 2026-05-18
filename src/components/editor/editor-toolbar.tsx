@@ -66,6 +66,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
       const formData = new FormData()
       formData.append("file", file)
+      formData.append("folder", "posts")
 
       try {
         const res = await fetch("/api/media", {

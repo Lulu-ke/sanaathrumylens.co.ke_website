@@ -294,6 +294,7 @@ export default function EditPostPage() {
 
     const formDataUpload = new FormData()
     formDataUpload.append("file", file)
+    formDataUpload.append("folder", "posts")
     try {
       const res = await fetch("/api/media", {
         method: "POST",

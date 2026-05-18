@@ -77,6 +77,7 @@ export default function NewEventPage() {
     if (!file) return
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("folder", "events")
     try {
       const res = await fetch("/api/media", { method: "POST", body: formData })
       const data = await res.json()
@@ -240,7 +241,7 @@ export default function NewEventPage() {
             <CardContent className="space-y-4">
               {coverImage ? (
                 <div className="relative group">
-                  <img src={coverImage} alt="Cover" className="w-full h-40 object-cover rounded-lg" />
+                  <img src={coverImage} alt="Cover" className="w-full h-40 object-cover rounded-lg" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   <Button variant="destructive" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7" onClick={() => setCoverImage("")}>
                     <X className="size-3" />
                   </Button>

@@ -193,6 +193,7 @@ export default function EditArtistPage() {
     if (!file) return
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("folder", "artists")
     try {
       const res = await fetch("/api/media", { method: "POST", body: formData })
       const data = await res.json()
@@ -416,7 +417,7 @@ export default function EditArtistPage() {
             <CardContent className="space-y-4">
               {image ? (
                 <div className="relative group">
-                  <img src={image} alt="Profile" className="w-32 h-32 object-cover rounded-full mx-auto" />
+                  <img src={image} alt="Profile" className="w-32 h-32 object-cover rounded-full mx-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   <Button variant="destructive" size="icon" className="absolute top-0 right-4 opacity-0 group-hover:opacity-100 transition-opacity size-7" onClick={() => setImage("")}>
                     <X className="size-3" />
                   </Button>
@@ -436,7 +437,7 @@ export default function EditArtistPage() {
             <CardContent className="space-y-4">
               {coverImage ? (
                 <div className="relative group">
-                  <img src={coverImage} alt="Cover" className="w-full h-32 object-cover rounded-lg" />
+                  <img src={coverImage} alt="Cover" className="w-full h-32 object-cover rounded-lg" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   <Button variant="destructive" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7" onClick={() => setCoverImage("")}>
                     <X className="size-3" />
                   </Button>

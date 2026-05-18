@@ -227,7 +227,7 @@ export default function ArtistsDashboardPage() {
               {/* Cover / Image area */}
               <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden">
                 {artist.coverImage ? (
-                  <img src={artist.coverImage} alt="" className="h-full w-full object-cover" />
+                  <img src={artist.coverImage} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center">
                     <Palette className="size-12 text-primary/20" />
@@ -237,7 +237,7 @@ export default function ArtistsDashboardPage() {
                 <div className="absolute -bottom-8 left-4">
                   <div className="size-16 rounded-full border-4 border-background overflow-hidden bg-muted">
                     {artist.image ? (
-                      <img src={artist.image} alt={artist.name} className="h-full w-full object-cover" />
+                      <img src={artist.image} alt={artist.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-bold text-lg">
                         {artist.name.charAt(0)}
@@ -331,7 +331,7 @@ export default function ArtistsDashboardPage() {
                       <div className="flex items-center gap-3">
                         <div className="size-8 rounded-full overflow-hidden bg-muted shrink-0">
                           {artist.image ? (
-                            <img src={artist.image} alt={artist.name} className="h-full w-full object-cover" />
+                            <img src={artist.image} alt={artist.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
                           ) : (
                             <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-bold text-xs">
                               {artist.name.charAt(0)}

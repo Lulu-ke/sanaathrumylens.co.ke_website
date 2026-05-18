@@ -224,6 +224,7 @@ export default function NewPostPage() {
 
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("folder", "posts")
 
     try {
       const res = await fetch("/api/media", { method: "POST", body: formData })

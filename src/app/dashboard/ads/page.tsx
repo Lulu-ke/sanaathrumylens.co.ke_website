@@ -13,6 +13,8 @@ import {
   Eye,
   MousePointer,
   MoreHorizontal,
+  Upload,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -97,6 +99,7 @@ export default function AdsPage() {
   const [editingAd, setEditingAd] = useState<Ad | null>(null)
   const [deleteAd, setDeleteAd] = useState<Ad | null>(null)
   const [form, setForm] = useState(defaultForm)
+  const [uploadingAdImage, setUploadingAdImage] = useState(false)
 
   const { data: adsData, isLoading } = useQuery<{ ads: Ad[] }>({
     queryKey: ["ads"],
@@ -201,6 +204,27 @@ export default function AdsPage() {
     return <Badge variant={info.variant}>{info.label}</Badge>
   }
 
+  const handleAdImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAdImage(true)
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("folder", "ads")
+    try {
+      const res = await fetch("/api/media", { method: "POST", body: formData })
+      const data = await res.json()
+      if (data.url) {
+        setForm({ ...form, imageUrl: data.url })
+        toast.success("Image uploaded")
+      }
+    } catch {
+      toast.error("Failed to upload image")
+    } finally {
+      setUploadingAdImage(false)
+    }
+  }
+
   if (!canManage) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -258,7 +282,7 @@ export default function AdsPage() {
                     <TableRow key={ad.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <img src={ad.imageUrl} alt={ad.title} className="size-14 object-cover rounded" />
+                          <img src={ad.imageUrl} alt={ad.title} className="size-14 object-cover rounded" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
                           <div>
                             <p className="font-medium text-sm">{ad.title}</p>
                             {ad.description && <p className="text-xs text-muted-foreground line-clamp-1">{ad.description}</p>}
@@ -336,10 +360,20 @@ export default function AdsPage() {
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional description" rows={2} />
             </div>
             <div className="space-y-2">
-              <Label>Image URL</Label>
-              <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." />
+              <Label>Ad Image</Label>
+              <div className="flex gap-2">
+                <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://... or upload" className="flex-1" />
+                <label>
+                  <Button variant="outline" size="icon" className="shrink-0" asChild disabled={uploadingAdImage}>
+                    <span>
+                      {uploadingAdImage ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                    </span>
+                  </Button>
+                  <input type="file" accept="image/*" onChange={handleAdImageUpload} className="hidden" />
+                </label>
+              </div>
               {form.imageUrl && (
-                <img src={form.imageUrl} alt="Preview" className="h-20 w-full object-cover rounded mt-2" />
+                <img src={form.imageUrl} alt="Preview" className="h-20 w-full object-cover rounded mt-2" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
               )}
             </div>
             <div className="space-y-2">

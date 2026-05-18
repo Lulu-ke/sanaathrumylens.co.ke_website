@@ -77,13 +77,14 @@ export default function MediaPage() {
     onError: () => toast.error("Failed to delete media"),
   })
 
-  const uploadFiles = useCallback(async (files: FileList) => {
+  const uploadFiles = useCallback(async (files: FileList, folder: string = "misc") => {
     setUploading(true)
     let successCount = 0
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue
       const formData = new FormData()
       formData.append("file", file)
+      formData.append("folder", folder)
       try {
         const res = await fetch("/api/media", { method: "POST", body: formData })
         if (res.ok) successCount++
@@ -194,7 +195,7 @@ export default function MediaPage() {
               <CardContent className="p-0">
                 <div className="aspect-square relative">
                   {item.mimeType.startsWith("image/") ? (
-                    <img src={item.url} alt={item.altText || item.originalName} className="w-full h-full object-cover" />
+                    <img src={item.url} alt={item.altText || item.originalName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                       <ImageIcon className="size-8 text-muted-foreground" />
@@ -244,7 +245,7 @@ export default function MediaPage() {
           </DialogHeader>
           {previewItem && (
             <div className="space-y-4">
-              <img src={previewItem.url} alt={previewItem.altText || previewItem.originalName} className="w-full max-h-96 object-contain rounded-lg" />
+              <img src={previewItem.url} alt={previewItem.altText || previewItem.originalName} className="w-full max-h-96 object-contain rounded-lg" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Size:</span> {formatSize(previewItem.size)}</div>
                 <div><span className="text-muted-foreground">Type:</span> {previewItem.mimeType}</div>

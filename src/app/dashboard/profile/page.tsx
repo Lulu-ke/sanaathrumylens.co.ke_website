@@ -106,6 +106,7 @@ export default function ProfilePage() {
     if (!file) return
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("folder", "profiles")
     try {
       const res = await fetch("/api/media", { method: "POST", body: formData })
       const data = await res.json()

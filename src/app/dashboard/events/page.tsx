@@ -213,7 +213,7 @@ function EventsContent() {
           {eventsData?.events?.map((event) => (
             <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
               {event.coverImage ? (
-                <img src={event.coverImage} alt={event.title} className="h-40 w-full object-cover" />
+                <img src={event.coverImage} alt={event.title} className="h-40 w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
               ) : (
                 <div className="h-40 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                   <Calendar className="size-12 text-primary/30" />
