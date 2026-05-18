@@ -4,12 +4,19 @@ import webpush from 'web-push';
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
+let vapidConfigured = false;
+
 if (vapidPublicKey && vapidPrivateKey) {
-  webpush.setVapidDetails(
-    'mailto:hello@sanaathrumylens.co.ke',
-    vapidPublicKey,
-    vapidPrivateKey
-  );
+  try {
+    webpush.setVapidDetails(
+      'mailto:hello@sanaathrumylens.co.ke',
+      vapidPublicKey,
+      vapidPrivateKey
+    );
+    vapidConfigured = true;
+  } catch (err) {
+    console.warn('[Push] Invalid VAPID keys, push notifications will be disabled:', err);
+  }
 }
 
 export interface PushPayload {
@@ -25,7 +32,7 @@ export interface PushPayload {
  * Send a push notification to a specific user
  */
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<{ sent: number; failed: number }> {
-  if (!vapidPublicKey || !vapidPrivateKey) {
+  if (!vapidConfigured) {
     console.log('[Push] VAPID keys not configured, skipping push');
     return { sent: 0, failed: 0 };
   }
@@ -80,7 +87,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
  * Send push notification to all users with a minimum role
  */
 export async function sendPushToRole(minRole: string, payload: PushPayload): Promise<{ sent: number; failed: number }> {
-  if (!vapidPublicKey || !vapidPrivateKey) {
+  if (!vapidConfigured) {
     console.log('[Push] VAPID keys not configured, skipping push');
     return { sent: 0, failed: 0 };
   }
