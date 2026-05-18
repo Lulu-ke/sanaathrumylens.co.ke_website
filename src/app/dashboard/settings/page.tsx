@@ -37,7 +37,9 @@ export default function SettingsPage() {
     queryFn: async () => {
       const res = await fetch("/api/settings")
       if (!res.ok) throw new Error("Failed to fetch settings")
-      return res.json()
+      const data = await res.json()
+      // API returns { settings: Record, raw: SiteSetting[] }
+      return Array.isArray(data) ? data : (data.raw || [])
     },
   })
 

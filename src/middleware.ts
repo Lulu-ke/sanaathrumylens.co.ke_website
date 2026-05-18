@@ -89,6 +89,7 @@ const publicGetApiRoutes = [
 // API routes that are public for specific POST requests (no auth required)
 const publicPostApiRoutes = [
   "/api/newsletter",
+  "/api/contact",
   "/api/ads/track",
   "/api/sponsored/submit",
   "/api/analytics/track",
