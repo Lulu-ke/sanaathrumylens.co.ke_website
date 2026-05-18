@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ShareButtons } from '@/components/blog/share-buttons';
 import { BookmarkButton } from '@/components/blog/bookmark-button';
+import { SaveToListButton } from '@/components/blog/save-to-list-button';
 import { CommentSection } from '@/components/blog/comment-section';
 import { PostCard } from '@/components/blog/post-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
@@ -152,6 +153,12 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
               size="sm"
               showLabel
             />
+            <SaveToListButton
+              postId={post.id}
+              variant="outline"
+              size="sm"
+              showLabel
+            />
             <ShareButtons title={post.title} slug={post.slug} />
           </div>
         </div>
@@ -205,13 +212,21 @@ export function PostDetailClient({ post, relatedPosts, authorPosts }: PostDetail
       {/* Share + Bookmark at bottom */}
       <div className="flex items-center justify-between mt-8 pt-6 border-t">
         <ShareButtons title={post.title} slug={post.slug} />
-        <BookmarkButton
-          postId={post.id}
-          initialBookmarked={post.isBookmarked}
-          variant="outline"
-          size="sm"
-          showLabel
-        />
+        <div className="flex items-center gap-2">
+          <BookmarkButton
+            postId={post.id}
+            initialBookmarked={post.isBookmarked}
+            variant="outline"
+            size="sm"
+            showLabel
+          />
+          <SaveToListButton
+            postId={post.id}
+            variant="outline"
+            size="sm"
+            showLabel
+          />
+        </div>
       </div>
 
       {/* Newsletter CTA */}

@@ -383,11 +383,15 @@ export function ReadingListsClient({ initialLists, bookmarks }: ReadingListsClie
         </Card>
       )}
 
-      {lists.length === 0 ? (
+      {lists.length === 0 && !showNewList ? (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
           <p className="text-lg font-medium">No reading lists yet</p>
           <p className="text-muted-foreground mt-1">Create your first list to organize saved stories</p>
+          <Button onClick={() => setShowNewList(true)} className="mt-4 gap-2">
+            <Plus className="h-4 w-4" />
+            Create Your First List
+          </Button>
         </div>
       ) : (
         <div className="grid gap-4">

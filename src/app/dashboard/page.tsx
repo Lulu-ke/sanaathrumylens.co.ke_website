@@ -126,14 +126,16 @@ export default function DashboardPage() {
             Welcome back, {session?.user?.name || "User"}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/posts/new">
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              New Post
-            </Button>
-          </Link>
-        </div>
+        {(role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "AUTHOR") && (
+          <div className="flex gap-2">
+            <Link href="/dashboard/posts/new">
+              <Button className="gap-2">
+                <Plus className="size-4" />
+                New Post
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -202,6 +204,34 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium text-sm">Create New Content</p>
                   <p className="text-xs text-muted-foreground">Write a post or create an event</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
+
+      {/* Moderator Quick Actions */}
+      {role === "MODERATOR" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link href="/dashboard/comments?status=PENDING">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500">
+              <CardContent className="p-4 flex items-center gap-3">
+                <AlertCircle className="size-5 text-violet-500" />
+                <div>
+                  <p className="font-medium text-sm">Review Pending Comments</p>
+                  <p className="text-xs text-muted-foreground">{stats?.pendingComments || 0} comments awaiting moderation</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/comments">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-emerald-500">
+              <CardContent className="p-4 flex items-center gap-3">
+                <CheckCircle2 className="size-5 text-emerald-500" />
+                <div>
+                  <p className="font-medium text-sm">All Comments</p>
+                  <p className="text-xs text-muted-foreground">{stats?.totalComments || 0} total comments</p>
                 </div>
               </CardContent>
             </Card>
