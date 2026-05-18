@@ -232,25 +232,27 @@ function CommentsContent() {
                       {new Date(comment.createdAt).toLocaleString()}
                     </p>
                     <p className="text-sm mt-2 whitespace-pre-wrap">{comment.content}</p>
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="flex items-center gap-1.5 mt-3 flex-wrap">
                       {comment.status === "PENDING" && (
                         <>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-emerald-600 hover:text-emerald-700"
+                            className="gap-1 text-emerald-600 hover:text-emerald-700 h-7 text-xs"
                             onClick={() => moderateMutation.mutate({ id: comment.id, status: "APPROVED" })}
+                            disabled={moderateMutation.isPending}
                           >
-                            <CheckCircle2 className="size-3.5" />
+                            <CheckCircle2 className="size-3" />
                             Approve
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-destructive hover:text-destructive"
+                            className="gap-1 text-destructive hover:text-destructive h-7 text-xs"
                             onClick={() => moderateMutation.mutate({ id: comment.id, status: "REJECTED" })}
+                            disabled={moderateMutation.isPending}
                           >
-                            <XCircle className="size-3.5" />
+                            <XCircle className="size-3" />
                             Reject
                           </Button>
                         </>
@@ -259,43 +261,45 @@ function CommentsContent() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="gap-1"
+                          className="gap-1 h-7 text-xs"
                           onClick={() => moderateMutation.mutate({ id: comment.id, status: "PENDING" })}
+                          disabled={moderateMutation.isPending}
                         >
-                          Reset to Pending
+                          Reset
                         </Button>
                       )}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1"
+                        className="gap-1 h-7 text-xs"
                         onClick={() => {
                           setReplyComment(comment)
                           setReplyContent("")
                         }}
                       >
-                        <Reply className="size-3.5" />
+                        <Reply className="size-3" />
                         Reply
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1 text-orange-600"
-                        onClick={() => moderateMutation.mutate({ id: comment.id, status: "SPAM" })}
-                      >
-                        <AlertTriangle className="size-3.5" />
-                        Spam
-                      </Button>
+                      {/* Secondary actions in dropdown */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
+                          <Button variant="ghost" size="icon" className="size-7">
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            className="text-destructive"
+                            className="text-orange-600 focus:text-orange-700"
+                            onClick={() => moderateMutation.mutate({ id: comment.id, status: "SPAM" })}
+                            disabled={moderateMutation.isPending}
+                          >
+                            <AlertTriangle className="mr-2 size-4" />
+                            Mark as Spam
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
                             onClick={() => deleteMutation.mutate(comment.id)}
+                            disabled={deleteMutation.isPending}
                           >
                             <Trash2 className="mr-2 size-4" />
                             Delete

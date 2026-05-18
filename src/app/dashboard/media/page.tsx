@@ -346,7 +346,8 @@ export default function MediaPage() {
                       <ImageIcon className="size-8 text-muted-foreground" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  {/* Touch: always visible. Desktop: hover only. */}
+                  <div className="absolute inset-0 bg-black/50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Button
                       variant="secondary"
                       size="icon"

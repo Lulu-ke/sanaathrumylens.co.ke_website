@@ -202,32 +202,29 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {isLoading
           ? Array.from({ length: statCards().length }).map((_, i) => (
               <Card key={i}>
-                <CardContent className="p-6">
+                <CardContent className="p-3 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg" />
                   </div>
-                  <Skeleton className="h-8 w-20 mt-3" />
-                  <Skeleton className="h-3 w-24 mt-2" />
+                  <Skeleton className="h-6 sm:h-8 w-12 sm:w-20 mt-2 sm:mt-3" />
+                  <Skeleton className="h-3 w-16 sm:w-24 mt-1 sm:mt-2" />
                 </CardContent>
               </Card>
             ))
           : statCards().map((card) => (
               <Link key={card.title} href={card.href}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className={`${card.bgColor} p-2 rounded-lg`}>
-                        <card.icon className={`size-5 ${card.color}`} />
-                      </div>
+                  <CardContent className="p-3 sm:p-6">
+                    <div className={`${card.bgColor} p-1.5 sm:p-2 rounded-lg w-fit`}>
+                      <card.icon className={`size-4 sm:size-5 ${card.color}`} />
                     </div>
-                    <div className="mt-3">
-                      <p className="text-2xl font-bold">{card.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+                    <div className="mt-2 sm:mt-3">
+                      <p className="text-xl sm:text-2xl font-bold">{card.value}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{card.description}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -237,7 +234,7 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       {(role === "EDITOR" || role === "SUPER_ADMIN" || role === "ADMIN") && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <Link href="/dashboard/posts?status=PENDING_REVIEW">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-amber-500">
               <CardContent className="p-4 flex items-center gap-3">
@@ -289,7 +286,7 @@ export default function DashboardPage() {
 
       {/* Moderator Quick Actions */}
       {role === "MODERATOR" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <Link href="/dashboard/comments?status=PENDING">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-violet-500">
               <CardContent className="p-4 flex items-center gap-3">
@@ -327,7 +324,7 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Recent Posts */}
         <Card>
           <CardHeader>

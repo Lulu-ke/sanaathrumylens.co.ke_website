@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { UserPlus, Search, Download, Trash2, Mail, Loader2 } from 'lucide-react';
+import { UserPlus, Search, Download, Trash2, Mail, Loader2, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,34 +157,34 @@ function SubscribersContent() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <UserPlus className="h-6 w-6 text-primary" />
-            Newsletter Subscribers
+            Subscribers
           </h1>
-          <p className="text-muted-foreground">Manage your newsletter subscriber list</p>
+          <p className="text-sm text-muted-foreground">Manage your newsletter subscriber list</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCSV}>
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{pagination?.total || 0}</p>
-            <p className="text-xs text-muted-foreground">Total Subscribers</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-bold">{pagination?.total || 0}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-600">{activeCount}</p>
-            <p className="text-xs text-muted-foreground">Active</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-bold text-emerald-600">{activeCount}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Active</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-muted-foreground">{unsubscribedCount}</p>
-            <p className="text-xs text-muted-foreground">Unsubscribed</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-bold text-muted-foreground">{unsubscribedCount}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Unsubscribed</p>
           </CardContent>
         </Card>
       </div>
@@ -195,7 +201,7 @@ function SubscribersContent() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Filter status" />
           </SelectTrigger>
           <SelectContent>
@@ -206,7 +212,7 @@ function SubscribersContent() {
         </Select>
       </div>
 
-      {/* Subscriber List */}
+      {/* Subscriber List — Card layout for mobile, compact rows for desktop */}
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -215,7 +221,7 @@ function SubscribersContent() {
         </div>
       ) : filteredSubscribers.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
+          <CardContent className="p-8 text-center">
             <Mail className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">
               {searchQuery ? 'No subscribers match your search' : 'No subscribers yet'}
@@ -223,44 +229,50 @@ function SubscribersContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="border rounded-lg">
-          <div className="grid grid-cols-[1fr_1fr_100px_120px_60px] gap-4 p-3 text-xs font-medium text-muted-foreground border-b bg-muted/30">
-            <span>Email</span>
-            <span>Name</span>
-            <span>Status</span>
-            <span>Subscribed</span>
-            <span></span>
-          </div>
-          <div className="divide-y max-h-96 overflow-y-auto">
-            {filteredSubscribers.map((subscriber: Subscriber) => (
-              <div
-                key={subscriber.id}
-                className="grid grid-cols-[1fr_1fr_100px_120px_60px] gap-4 p-3 text-sm hover:bg-accent/30 transition-colors"
-              >
-                <span className="truncate">{subscriber.email}</span>
-                <span className="truncate text-muted-foreground">
-                  {subscriber.name || '—'}
-                </span>
-                <Badge
-                  variant={subscriber.status === 'ACTIVE' ? 'default' : 'secondary'}
-                  className="text-[10px] h-5 w-fit"
-                >
-                  {subscriber.status}
-                </Badge>
-                <span className="text-muted-foreground text-xs">
-                  {new Date(subscriber.createdAt).toLocaleDateString()}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => setDeleteSubscriber(subscriber)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+        <div className="space-y-2">
+          {filteredSubscribers.map((subscriber: Subscriber) => (
+            <div
+              key={subscriber.id}
+              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{subscriber.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {subscriber.name && (
+                    <span className="text-xs text-muted-foreground truncate">{subscriber.name}</span>
+                  )}
+                  <Badge
+                    variant={subscriber.status === 'ACTIVE' ? 'default' : 'secondary'}
+                    className="text-[10px] h-4 shrink-0"
+                  >
+                    {subscriber.status}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">
+                    {new Date(subscriber.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground">
+                    <MoreVertical className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-xs text-muted-foreground">
+                    Joined {new Date(subscriber.createdAt).toLocaleDateString()}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteSubscriber(subscriber)}
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
         </div>
       )}
 
