@@ -84,9 +84,10 @@ export function SidebarAd({ className = '' }: { className?: string }) {
       }
     };
 
-    // Check after delays
+    // Check after delays — AdSense can take time to process
     const t1 = setTimeout(checkAdStatus, 2000);
     const t2 = setTimeout(checkAdStatus, 5000);
+    const t3 = setTimeout(checkAdStatus, 8000);
 
     // Observe for changes
     const observer = new MutationObserver(checkAdStatus);
@@ -101,6 +102,7 @@ export function SidebarAd({ className = '' }: { className?: string }) {
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       observer.disconnect();
     };
   }, []);
@@ -122,13 +124,6 @@ export function SidebarAd({ className = '' }: { className?: string }) {
           <div className="text-muted-foreground/30 text-2xl">&#10022;</div>
           <p className="text-xs text-muted-foreground/40 font-medium">Advertisement</p>
           <p className="text-[10px] text-muted-foreground/25">Ad space available</p>
-        </div>
-      )}
-
-      {/* Show subtle loading state while waiting for ad */}
-      {adState === 'loading' && (
-        <div className="min-h-[100px] bg-muted/20 border border-dashed border-muted-foreground/10 rounded-lg flex items-center justify-center">
-          <p className="text-xs text-muted-foreground/30">Loading ad...</p>
         </div>
       )}
     </div>
