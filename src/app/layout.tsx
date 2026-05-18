@@ -20,6 +20,9 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://sanaathrumylens.co.ke'),
+  other: {
+    'google-adsense-account': 'ca-pub-8031704055036556',
+  },
   title: {
     default: "Sanaa Through My Lens — Arts & Culture Blog",
     template: "%s | Sanaa Through My Lens",
@@ -67,6 +70,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8031704055036556"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${inter.variable} ${playfair.variable} antialiased bg-background text-foreground`}
       >

@@ -75,10 +75,8 @@ export default async function HomePage() {
     heroPosts.push(...fallback);
   }
 
-  // Grid posts = recent posts minus any that appear in the carousel
-  const gridPosts = recentPosts.filter(
-    (p) => !heroPosts.some((h) => h.id === p.id)
-  );
+  // Grid posts = all recent posts (carousel posts may also appear in grid — this is standard for news sites)
+  const gridPosts = recentPosts;
   // Trending posts for ticker (just title + slug)
   const trendingPosts = recentPosts.slice(0, 5).map((p) => ({
     id: p.id,

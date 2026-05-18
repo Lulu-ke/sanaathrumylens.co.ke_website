@@ -18,7 +18,7 @@ import { TrendingTicker } from '@/components/blog/trending-ticker';
 import { PostCard } from '@/components/blog/post-card';
 import { EventCard } from '@/components/blog/event-card';
 import { NewsletterForm } from '@/components/blog/newsletter-form';
-import { AdSlot } from '@/components/blog/ad-slot';
+import { SidebarAd, InArticleAd } from '@/components/blog/google-ad';
 
 interface CategoryWithCount {
   id: string;
@@ -152,18 +152,18 @@ export function HomepageClient({
               </div>
             )}
 
-            {/* Between Posts Ad */}
+            {/* Between Posts Ad (Google AdSense) */}
             <div className="mt-8">
-              <AdSlot placement="BETWEEN_POSTS" />
+              <InArticleAd />
             </div>
           </div>
 
           {/* Right Column (1/3): Sidebar */}
           <aside className="space-y-6">
-            {/* Google Ad Slot */}
+            {/* Google AdSense */}
             <Card className="overflow-hidden">
-              <CardContent className="p-4">
-                <AdSlot placement="SIDEBAR" />
+              <CardContent className="p-3">
+                <SidebarAd />
               </CardContent>
             </Card>
 
