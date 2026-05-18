@@ -39,6 +39,22 @@ export default async function ReaderDashboardPage() {
     take: 20,
   });
 
+  // Fetch user's reading lists
+  const readingLists = await db.readingList.findMany({
+    where: { userId: session.user.id },
+    include: {
+      items: {
+        take: 3,
+        include: {
+          post: { select: { id: true, title: true, slug: true, featuredImage: true, readingTime: true, author: { select: { id: true, name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+      _count: { select: { items: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
   // Fetch user's comments
   const comments = await db.comment.findMany({
     where: { authorId: session.user.id },
@@ -58,6 +74,7 @@ export default async function ReaderDashboardPage() {
       }}
       bookmarks={JSON.parse(JSON.stringify(bookmarks))}
       comments={JSON.parse(JSON.stringify(comments))}
+      readingLists={JSON.parse(JSON.stringify(readingLists))}
     />
   );
 }

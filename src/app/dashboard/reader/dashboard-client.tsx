@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bookmark, MessageCircle, Settings, Trash2, ExternalLink, Mail, Bell, Monitor, User as UserIcon } from 'lucide-react';
+import { Bookmark, MessageCircle, Settings, Trash2, ExternalLink, Mail, Bell, Monitor, User as UserIcon, BookOpen, Globe, Lock, Plus } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,11 +43,27 @@ interface ReaderDashboardClientProps {
     createdAt: string;
     post: { id: string; title: string; slug: string };
   }[];
+  readingLists: {
+    id: string;
+    name: string;
+    description: string | null;
+    isPublic: boolean;
+    slug: string;
+    updatedAt: string;
+    items: {
+      post: { id: string; title: string; slug: string; featuredImage: string | null; readingTime: number; author: { id: string; name: string } };
+    }[];
+    _count: { items: number };
+  }[];
 }
 
-export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashboardClientProps) {
-  const [activeTab, setActiveTab] = useState<'bookmarks' | 'comments' | 'settings'>('bookmarks');
+export function ReaderDashboardClient({ user, bookmarks, comments, readingLists: initialLists }: ReaderDashboardClientProps) {
+  const [activeTab, setActiveTab] = useState<'bookmarks' | 'reading-lists' | 'comments' | 'settings'>('bookmarks');
   const [bookmarkList, setBookmarkList] = useState(bookmarks);
+  const [lists, setLists] = useState(initialLists);
+  const [showNewList, setShowNewList] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
   const { theme, setTheme } = useTheme();
 
   // Settings state — persisted in localStorage (lazy init reads from storage on client)
@@ -102,6 +118,47 @@ export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashb
     }
   };
 
+  const handleCreateList = async () => {
+    if (!newListName.trim()) return;
+    setCreatingList(true);
+    try {
+      const res = await fetch('/api/reading-lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newListName.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLists((prev) => [
+          { ...data.list, items: [], _count: { items: 0 } },
+          ...prev,
+        ]);
+        setNewListName('');
+        setShowNewList(false);
+        toast.success('Reading list created');
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to create list');
+      }
+    } catch {
+      toast.error('Failed to create list');
+    } finally {
+      setCreatingList(false);
+    }
+  };
+
+  const handleDeleteList = async (listId: string) => {
+    try {
+      const res = await fetch(`/api/reading-lists/${listId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setLists((prev) => prev.filter((l) => l.id !== listId));
+        toast.success('Reading list deleted');
+      }
+    } catch {
+      toast.error('Failed to delete list');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* User Profile Header */}
@@ -119,16 +176,17 @@ export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashb
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b">
+      <div className="flex gap-1 mb-6 border-b overflow-x-auto">
         {([
           { key: 'bookmarks' as const, label: 'Bookmarks', icon: Bookmark },
+          { key: 'reading-lists' as const, label: 'Reading Lists', icon: BookOpen },
           { key: 'comments' as const, label: 'Comments', icon: MessageCircle },
           { key: 'settings' as const, label: 'Settings', icon: Settings },
         ]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               activeTab === key
                 ? 'text-primary border-primary'
                 : 'text-muted-foreground border-transparent hover:text-foreground'
@@ -209,6 +267,143 @@ export function ReaderDashboardClient({ user, bookmarks, comments }: ReaderDashb
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'reading-lists' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-xl font-bold">Your Reading Lists ({lists.length})</h2>
+            <Button onClick={() => setShowNewList(true)} size="sm" className="gap-1">
+              <Plus className="h-4 w-4" />
+              New List
+            </Button>
+          </div>
+
+          {showNewList && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex gap-2">
+                  <Input
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    placeholder="List name..."
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
+                    disabled={creatingList}
+                  />
+                  <Button onClick={handleCreateList} size="sm" disabled={creatingList}>
+                    {creatingList ? 'Creating...' : 'Create'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowNewList(false); setNewListName(''); }}
+                    disabled={creatingList}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {lists.length === 0 && !showNewList ? (
+            <div className="text-center py-12">
+              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground">No reading lists yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Create lists to organize your saved stories by topic, mood, or any way you like
+              </p>
+              <Button onClick={() => setShowNewList(true)} className="mt-4 gap-1">
+                <Plus className="h-4 w-4" />
+                Create Your First List
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {lists.map((list) => (
+                <Card key={list.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium line-clamp-1">{list.name}</h3>
+                          <Badge variant="outline" className="text-[10px] h-5 gap-1 shrink-0">
+                            {list.isPublic ? (
+                              <><Globe className="h-3 w-3" /> Public</>
+                            ) : (
+                              <><Lock className="h-3 w-3" /> Private</>
+                            )}
+                          </Badge>
+                        </div>
+                        {list.description && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{list.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                          <span>{list._count.items} {list._count.items === 1 ? 'story' : 'stories'}</span>
+                          <span>·</span>
+                          <span>Updated {new Date(list.updatedAt).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        {/* Preview thumbnails */}
+                        {list.items.length > 0 && (
+                          <div className="flex gap-2 mt-3">
+                            {list.items.map((item) => (
+                              <Link key={item.post.id} href={`/post/${item.post.slug}`}>
+                                {item.post.featuredImage ? (
+                                  <img
+                                    src={item.post.featuredImage}
+                                    alt={item.post.title}
+                                    className="w-12 h-12 rounded object-cover hover:opacity-80 transition-opacity"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </Link>
+                            ))}
+                            {list._count.items > 3 && (
+                              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                                +{list._count.items - 3}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Link href={`/list/${list.slug}`}>
+                          <Button variant="ghost" size="sm" className="text-xs gap-1">
+                            <ExternalLink className="h-3 w-3" />
+                            View
+                          </Button>
+                        </Link>
+                        <Link href="/dashboard/reading-lists">
+                          <Button variant="ghost" size="sm" className="text-xs gap-1">
+                            Manage
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteList(list.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground text-center">
+            For full list management, visit{' '}
+            <Link href="/dashboard/reading-lists" className="text-primary hover:underline">
+              Reading Lists
+            </Link>
+          </p>
         </div>
       )}
 
