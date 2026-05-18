@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Upload,
@@ -10,10 +10,13 @@ import {
   Search,
   X,
   Loader2,
+  CheckCircle2,
+  FileImage,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
   DialogContent,
@@ -31,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
@@ -45,13 +49,24 @@ interface MediaItem {
   createdAt: string
 }
 
+interface UploadProgress {
+  fileName: string
+  progress: number
+  status: 'uploading' | 'success' | 'error'
+  error?: string
+  originalSize?: number
+  convertedSize?: number
+  converted?: boolean
+}
+
 export default function MediaPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
-  const [uploading, setUploading] = useState(false)
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
   const [deleteItem, setDeleteItem] = useState<MediaItem | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [uploads, setUploads] = useState<UploadProgress[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: mediaData, isLoading } = useQuery<{ media: MediaItem[]; total: number }>({
     queryKey: ["media", search],
@@ -78,25 +93,98 @@ export default function MediaPage() {
   })
 
   const uploadFiles = useCallback(async (files: FileList, folder: string = "misc") => {
-    setUploading(true)
-    let successCount = 0
-    for (const file of Array.from(files)) {
+    const newUploads: UploadProgress[] = Array.from(files)
+      .filter(f => f.type.startsWith("image/"))
+      .map(f => ({
+        fileName: f.name,
+        progress: 0,
+        status: 'uploading' as const,
+        originalSize: f.size,
+      }))
+
+    if (newUploads.length === 0) {
+      toast.error("No valid image files selected")
+      return
+    }
+
+    setUploads(prev => [...prev, ...newUploads])
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
       if (!file.type.startsWith("image/")) continue
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("folder", folder)
+
+      const uploadIndex = uploads.length + i
+
       try {
-        const res = await fetch("/api/media", { method: "POST", body: formData })
-        if (res.ok) successCount++
-      } catch {
-        // skip failed uploads
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("folder", folder)
+
+        const result = await new Promise<{ url: string; size: number; originalSize?: number; converted?: boolean }>(
+          (resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+
+            xhr.upload.addEventListener('progress', (event) => {
+              if (event.lengthComputable) {
+                const percent = Math.round((event.loaded / event.total) * 100)
+                setUploads(prev => prev.map((u, idx) =>
+                  idx === uploadIndex ? { ...u, progress: percent } : u
+                ))
+              }
+            })
+
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const data = JSON.parse(xhr.responseText)
+                  resolve(data)
+                } catch {
+                  reject(new Error('Invalid response'))
+                }
+              } else {
+                try {
+                  const data = JSON.parse(xhr.responseText)
+                  reject(new Error(data.error || 'Upload failed'))
+                } catch {
+                  reject(new Error('Upload failed'))
+                }
+              }
+            })
+
+            xhr.addEventListener('error', () => reject(new Error('Network error')))
+            xhr.open('POST', '/api/media')
+            xhr.send(formData)
+          }
+        )
+
+        setUploads(prev => prev.map((u, idx) =>
+          idx === uploadIndex ? {
+            ...u,
+            status: 'success' as const,
+            progress: 100,
+            convertedSize: result.size,
+            converted: result.converted,
+          } : u
+        ))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Upload failed'
+        setUploads(prev => prev.map((u, idx) =>
+          idx === uploadIndex ? {
+            ...u,
+            status: 'error' as const,
+            error: message,
+          } : u
+        ))
       }
     }
+
     queryClient.invalidateQueries({ queryKey: ["media"] })
-    setUploading(false)
-    if (successCount > 0) toast.success(`${successCount} file(s) uploaded`)
-    else toast.error("No files uploaded")
-  }, [queryClient])
+
+    // Clear completed uploads after 5 seconds
+    setTimeout(() => {
+      setUploads(prev => prev.filter(u => u.status === 'uploading'))
+    }, 5000)
+  }, [queryClient, uploads.length])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -124,12 +212,15 @@ export default function MediaPage() {
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString()
 
+  const activeUploads = uploads.filter(u => u.status === 'uploading')
+  const hasActiveUploads = activeUploads.length > 0
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Media Library</h1>
-          <p className="text-muted-foreground">Upload and manage images and files</p>
+          <p className="text-muted-foreground">Upload and manage images — auto-converted to WebP</p>
         </div>
       </div>
 
@@ -142,16 +233,26 @@ export default function MediaPage() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        {uploading ? (
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Uploading...</p>
+        {hasActiveUploads ? (
+          <div className="space-y-4 max-w-md mx-auto">
+            <Loader2 className="size-8 animate-spin text-primary mx-auto" />
+            <p className="text-sm font-medium">Uploading {activeUploads.length} file{activeUploads.length > 1 ? 's' : ''}...</p>
+            {uploads.map((upload, idx) => (
+              <div key={idx} className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground truncate max-w-[200px]">{upload.fileName}</span>
+                  <span className="font-medium">{upload.progress}%</span>
+                </div>
+                <Progress value={upload.progress} className="h-2" />
+              </div>
+            ))}
           </div>
         ) : (
           <>
             <Upload className="size-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm font-medium mb-1">Drag and drop files here</p>
-            <p className="text-xs text-muted-foreground mb-3">or click to browse</p>
+            <p className="text-xs text-muted-foreground mb-1">or click to browse</p>
+            <p className="text-[10px] text-muted-foreground/70 mb-3">Images are automatically converted to WebP for faster loading</p>
             <label>
               <Button variant="outline" size="sm" className="cursor-pointer" asChild>
                 <span>
@@ -160,6 +261,7 @@ export default function MediaPage() {
                 </span>
               </Button>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 multiple
@@ -170,6 +272,49 @@ export default function MediaPage() {
           </>
         )}
       </div>
+
+      {/* Upload Results (completed uploads) */}
+      {uploads.some(u => u.status !== 'uploading') && (
+        <div className="space-y-2">
+          {uploads.filter(u => u.status !== 'uploading').map((upload, idx) => (
+            <div
+              key={idx}
+              className={`flex items-center gap-3 p-3 rounded-lg border ${
+                upload.status === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/30'
+                  : 'bg-destructive/5 border-destructive/20'
+              }`}
+            >
+              {upload.status === 'success' ? (
+                <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+              ) : (
+                <X className="size-4 text-destructive shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{upload.fileName}</p>
+                {upload.status === 'success' ? (
+                  <p className="text-xs text-muted-foreground">
+                    {upload.originalSize && formatSize(upload.originalSize)}
+                    {upload.converted && upload.convertedSize && upload.originalSize && (
+                      <> → {formatSize(upload.convertedSize)} <Badge variant="secondary" className="text-[10px] ml-1">WebP {Math.round((1 - upload.convertedSize / upload.originalSize) * 100)}% smaller</Badge></>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-xs text-destructive">{upload.error}</p>
+                )}
+              </div>
+              {upload.status === 'error' && (
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
+                  // Remove the failed upload from list
+                  setUploads(prev => prev.filter((_, i) => i !== idx))
+                }}>
+                  Dismiss
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -219,10 +364,19 @@ export default function MediaPage() {
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
+                  {/* WebP badge for converted images */}
+                  {item.mimeType === 'image/webp' && (
+                    <div className="absolute top-1.5 left-1.5">
+                      <Badge className="text-[9px] px-1 py-0 h-4 bg-emerald-500/80 text-white border-0">WebP</Badge>
+                    </div>
+                  )}
                 </div>
                 <div className="p-2">
                   <p className="text-xs truncate font-medium">{item.originalName}</p>
-                  <p className="text-xs text-muted-foreground">{formatSize(item.size)}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">{formatSize(item.size)}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.mimeType.split('/')[1]?.toUpperCase()}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -241,15 +395,24 @@ export default function MediaPage() {
       <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{previewItem?.originalName}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileImage className="size-5" />
+              {previewItem?.originalName}
+            </DialogTitle>
           </DialogHeader>
           {previewItem && (
             <div className="space-y-4">
               <img src={previewItem.url} alt={previewItem.altText || previewItem.originalName} className="w-full max-h-96 object-contain rounded-lg" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-article.svg' }} />
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Size:</span> {formatSize(previewItem.size)}</div>
-                <div><span className="text-muted-foreground">Type:</span> {previewItem.mimeType}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Type:</span> {previewItem.mimeType.split('/')[1]?.toUpperCase()}
+                  {previewItem.mimeType === 'image/webp' && (
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">Optimized</Badge>
+                  )}
+                </div>
                 <div><span className="text-muted-foreground">Uploaded:</span> {formatDate(previewItem.createdAt)}</div>
+                <div><span className="text-muted-foreground">Filename:</span> <span className="text-xs break-all">{previewItem.filename}</span></div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">URL:</span>{" "}
                   <span className="break-all text-xs">{previewItem.url}</span>

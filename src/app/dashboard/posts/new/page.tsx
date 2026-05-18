@@ -10,8 +10,6 @@ import {
   Calendar,
   ArrowLeft,
   Loader2,
-  ImageIcon,
-  X,
   CloudOff,
   RotateCcw,
 } from "lucide-react"
@@ -39,6 +37,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { TiptapEditor } from "@/components/editor/tiptap-editor"
 import { SaveStatusIndicator } from "@/components/editor/save-status-indicator"
 import { OfflineBanner } from "@/components/editor/offline-banner"
+import { ImageUpload } from "@/components/dashboard/image-upload"
 import { useAutoSave } from "@/hooks/use-auto-save"
 import { useOnlineStatus } from "@/hooks/use-online-status"
 import { getDraft, deleteDraft, type OfflineDraft } from "@/lib/offline-db"
@@ -213,29 +212,8 @@ export default function NewPostPage() {
     }
   }, [title, slug])
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!isOnline) {
-      toast.error("Cannot upload images while offline")
-      return
-    }
-
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("folder", "posts")
-
-    try {
-      const res = await fetch("/api/media", { method: "POST", body: formData })
-      const data = await res.json()
-      if (data.url) {
-        setFeaturedImage(data.url)
-        toast.success("Image uploaded")
-      }
-    } catch {
-      toast.error("Failed to upload image")
-    }
+  const handleImageUpload = (url: string) => {
+    setFeaturedImage(url)
   }
 
   const handleSave = async (status: string) => {
@@ -522,38 +500,16 @@ export default function NewPostPage() {
             <CardHeader>
               <CardTitle className="text-base">Featured Image</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {featuredImage ? (
-                <div className="relative group">
-                  <img
-                    src={featuredImage}
-                    alt="Featured"
-                    className="w-full h-40 object-cover rounded-lg"
-                  />
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7"
-                    onClick={() => setFeaturedImage("")}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                  <ImageIcon className="size-8 text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground">
-                    {isOnline ? "Click to upload" : "Online required to upload"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={!isOnline}
-                  />
-                </label>
-              )}
+            <CardContent>
+              <ImageUpload
+                value={featuredImage}
+                onChange={handleImageUpload}
+                folder="posts"
+                hint="Click to upload featured image"
+                aspectClass="aspect-video h-40"
+                disabled={!isOnline}
+                altText="Featured image"
+              />
             </CardContent>
           </Card>
 
